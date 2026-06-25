@@ -6,6 +6,8 @@ with depth *β* produces a carrier plus sidebands at ±*n·f₀*, where each lin
 intensity is *Jₙ(β)²* (Jacobi–Anger). Drag the sliders to see the spectrum and
 the Bessel functions update side by side.
 
+https://eom-sideband-explorer.streamlit.app/
+
 ## Run
 
 ```bash
