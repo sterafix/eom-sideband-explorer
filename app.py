@@ -236,3 +236,6 @@ with st.expander("Physics & model details"):
 
 st.caption("Interactive model of electro-optic phase modulation · "
            "idealized pure phase modulator.")
+
+st.caption("🛠️ Code's open on GitHub if you want to peek under the hood or build "
+           "on it: https://github.com/sterafix/eom-sideband-explorer")
