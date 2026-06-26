@@ -186,17 +186,17 @@ with st.expander("Physics & model details"):
         "Expanding with the **Jacobi-Anger identity** decomposes this into the "
         "carrier plus an infinite, discrete set of sidebands spaced by the "
         "modulation frequency $\\omega_m$:")
-    st.latex(r"E(t)=E_0\sum_{n=-\infty}^{\infty} J_n(\beta)\,e^{\,i(\omega_c+n\omega_m)t}")
+    st.latex(r"E(t)=E_0\sum_{n=-\infty}^{\infty} J_n(\beta)\,e^{\,i(\omega_c+n\omega_m)t},")
     st.markdown(
-        r"The line at detuning $n f_0$ has amplitude $J_n(\beta)$ and therefore "
-        r"intensity $J_n(\beta)^2$. Two consequences shape the figures:")
+        r"where $J_n(\beta)$ is the Bessel function (of the first kind). The line at detuning $n f_0$ has amplitude $J_n(\beta)$ and therefore "
+        r"intensity $|J_n(\beta)|^2$. Two consequences shape the figures:")
     st.markdown(
         r"- **Symmetry.** Since $J_{-n}(\beta)=(-1)^n J_n(\beta)$, the power "
         r"spectrum is symmetric about the carrier: the $\pm n$ orders have equal "
         r"intensity." "\n"
-        r"- **Energy conservation.** $\sum_{n} J_n(\beta)^2 = 1$, so phase "
+        r"- **Energy conservation.** $\sum_{n} |J_n(\beta)|^2 = 1$, so phase "
         r"modulation only redistributes power between carrier and sidebands. The "
-        r"*Captured optical power* readout is the partial sum of $J_n(\beta)^2$ "
+        r"*Captured optical power* readout is the partial sum of $|J_n(\beta)|^2$ "
         r"over the displayed orders.")
     st.markdown(
         r"The carrier first vanishes at $\beta\approx 2.4048$, the first zero of "
@@ -205,11 +205,12 @@ with st.expander("Physics & model details"):
         r"the half-wave voltage follows directly from the RF drive level,")
     st.latex(r"V_\pi = \frac{\pi\,V_\text{peak}}{2.4048}.")
     st.markdown(
-        r"This in turn allows the modulation depth to be calculated for any "
-        r"drive voltage.")
+        r"This in turn allows the modulation depth to be calculated approximately for any "
+        r"drive voltage, provided the temperature, wavelength, and drive frequency remain close to the calibration conditions and we "
+        r"ignore effects like piezoelectric resonances.")
     st.markdown("**What the figures show**")
     st.markdown(
-        r"- **Fig. 1** plots each order at $n f_0$ with height $J_n(\beta)^2$, "
+        r"- **Fig. 1** plots each order at $n f_0$ with height $|J_n(\beta)|^2$, "
         r"annotated with its order number. The ideal lines are mathematically "
         r"sharp; for visibility they are drawn as narrow Gaussian peaks on a small "
         r"synthetic noise floor (both adjustable under Display options)." "\n"
