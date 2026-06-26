@@ -13,7 +13,7 @@ import streamlit as st
 NMAX = 6        # max selectable sideband orders to display
 
 st.set_page_config(page_title="EOM Sideband Calculator",
-                   page_icon="🔬", layout="wide")
+                   page_icon="〰️", layout="wide")
 
 # ---------- physics helpers ----------
 def color_for_n(n):
