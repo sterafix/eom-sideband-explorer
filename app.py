@@ -16,12 +16,18 @@ st.set_page_config(page_title="EOM Sideband Calculator",
                    page_icon="〰️", layout="wide")
 
 # ---------- physics helpers ----------
-def color_for_n(n):
-    return {0:'black', 1:'#1f77b4', 2:'#2ca02c', 3:'#d62728',
-            4:'#9467bd', 5:'#8c564b', 6:'#e377c2'}[abs(n)]
+_ORDER_COLORS = ['#1f77b4', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2']
 
-def captured_power(beta, N):
-    return float(sum(jv(n, beta)**2 for n in range(-N, N + 1)))
+def color_for_n(n):
+    n = abs(n)
+    return 'black' if n == 0 else _ORDER_COLORS[(n - 1) % len(_ORDER_COLORS)]
+
+def sideband_intensities(beta, N):
+    """|J_n(beta)|^2 for n = 0..N; J_{-n}(beta)^2 == J_n(beta)^2 covers the negative orders."""
+    return jv(np.arange(N + 1), beta)**2
+
+def captured_power(Jn2):
+    return float(Jn2[0] + 2 * Jn2[1:].sum())
 
 # ---------- preset operating points (beta, displayed orders) ----------
 PRESETS = {
@@ -63,6 +69,8 @@ with st.sidebar.expander("Display options"):
     color_peaks = st.checkbox("Color-code peaks", True)
     fixed_xaxis = st.checkbox("Fix β-axis to 0–10", False)
 
+Jn2 = sideband_intensities(beta, N)   # |J_n(beta)|^2 for n = 0..N, shared by both figures and the table
+
 # ---------- styling to match the reference figure ----------
 GREY = '0.45'
 plt.rcParams.update({
@@ -71,8 +79,10 @@ plt.rcParams.update({
     "axes.linewidth": 1.0, "font.size": 11,
 })
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.5, 5.2), dpi=150)
-fig.subplots_adjust(wspace=0.18, top=0.86, bottom=0.13, left=0.07, right=0.93)
+fig1, ax1 = plt.subplots(figsize=(6.2, 5.2), dpi=150)
+fig1.subplots_adjust(top=0.86, bottom=0.13, left=0.14, right=0.96)
+fig2, ax2 = plt.subplots(figsize=(6.2, 5.2), dpi=150)
+fig2.subplots_adjust(top=0.86, bottom=0.13, left=0.10, right=0.86)
 
 # ===================== Fig. 1: spectrum =====================
 span  = (N + 0.8) * f0
@@ -80,12 +90,12 @@ freq  = np.linspace(-span, span, 6000)
 width = width_frac * span
 trace = np.zeros_like(freq)
 for n in range(-N, N + 1):
-    trace += jv(n, beta)**2 * np.exp(-0.5 * ((freq - n * f0) / width)**2)
+    trace += Jn2[abs(n)] * np.exp(-0.5 * ((freq - n * f0) / width)**2)
 trace += noise * np.abs(np.random.default_rng(0).normal(size=freq.shape))
 
 ax1.plot(freq, trace, color='black', lw=0.9, zorder=1)
 for n in range(0, N + 1):
-    h = jv(n, beta)**2
+    h = Jn2[n]
     if h <= 1e-3:
         continue
     centers = [0.0] if n == 0 else [-n * f0, n * f0]
@@ -116,7 +126,7 @@ ax1.text(0.04, 0.95,
 bmax  = 10.0 if fixed_xaxis else max(3.0, beta * 1.1)
 bgrid = np.linspace(0, bmax, 800)
 for n in range(0, N + 1):
-    h = jv(n, beta)**2
+    h = Jn2[n]
     ax2.plot(bgrid, jv(n, bgrid)**2, color=color_for_n(n), lw=2.2,
              label=f"$|J_{{{n}}}|^2$")
     ax2.plot([0, beta], [h, h], ls='--', color='0.7', lw=0.8, zorder=0)
@@ -142,7 +152,7 @@ st.divider()
 
 col_left, _ = st.columns([2, 3])
 with col_left:
-    cap = captured_power(beta, N)
+    cap = captured_power(Jn2)
     st.metric("Captured optical power", f"{cap*100:.1f} %",
               help="Fraction of the total optical power contained in the displayed "
                    "sideband orders. Raise the displayed-orders count at high beta "
@@ -155,8 +165,13 @@ with col_left:
         st.caption("The displayed orders account for essentially the full "
                    "optical power.")
 
-st.pyplot(fig, use_container_width=True)
-plt.close(fig)      # release the figure so reruns do not accumulate in memory
+col_fig1, col_fig2 = st.columns(2)
+with col_fig1:
+    st.pyplot(fig1, use_container_width=True)
+with col_fig2:
+    st.pyplot(fig2, use_container_width=True)
+plt.close(fig1)      # release the figures so reruns do not accumulate in memory
+plt.close(fig2)
 
 # ---------- exact sideband intensities (table) ----------
 st.subheader("Sideband intensities")
@@ -164,9 +179,9 @@ orders = list(range(0, N + 1))
 table = {
     "Order": ["0 (carrier)" if n == 0 else f"±{n}" for n in orders],
     "Detuning [MHz]": ["0" if n == 0 else f"±{n * f0:.0f}" for n in orders],
-    "Intensity per line  Jₙ(β)²": [f"{jv(n, beta)**2:.4f}" for n in orders],
+    "Intensity per line  Jₙ(β)²": [f"{Jn2[n]:.4f}" for n in orders],
     "Power share (both ±n)": [
-        f"{jv(n, beta)**2 * (1 if n == 0 else 2) * 100:.2f} %" for n in orders],
+        f"{Jn2[n] * (1 if n == 0 else 2) * 100:.2f} %" for n in orders],
 }
 col_t, _ = st.columns([3, 2])
 with col_t:
