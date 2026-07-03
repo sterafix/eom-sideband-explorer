@@ -150,13 +150,14 @@ st.caption("Phase-modulation sideband spectrum and its Bessel-function "
            "decomposition · line intensity $= J_n(\\beta)^2$ (Jacobi-Anger expansion)")
 
 with st.container(border=True):
-    col_left, _ = st.columns([1, 2])
+    col_left, col_right = st.columns([1, 2])
     with col_left:
         cap = captured_power(Jn2)
         st.metric("Captured optical power", f"{cap*100:.1f} %",
                   help="Fraction of the total optical power contained in the displayed "
                        "sideband orders. Raise the displayed-orders count at high beta "
                        "to account for the full spectrum.")
+    with col_right:
         if cap < 0.98:
             st.warning(f"**Spectral truncation:** {(1-cap)*100:.0f}% of the optical "
                        f"power falls outside the displayed orders. Increase the number "
