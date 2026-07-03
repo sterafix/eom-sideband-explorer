@@ -240,17 +240,14 @@ with st.expander("Physics & model details"):
         r"simulation).")
     st.markdown("**Beyond the ideal case: residual amplitude modulation**")
     st.markdown(
-        r"Real bulk modulators (e.g. MgO:LiNbO$_3$) never realize *pure* phase "
-        r"modulation. Etalon effects from imperfectly anti-reflection-coated "
-        r"crystal facets, the photoelastic effect, and piezoelectric resonances "
-        r"of the crystal all introduce a small **residual amplitude modulation "
-        r"(RAM)** on top of the intended phase modulation. RAM rotates the "
-        r"quadrature relationship between carrier and sidebands assumed above, "
-        r"where $J_0(\beta)$ stays purely real. In applications that rely on "
-        r"that relationship, such as Pound-Drever-Hall (PDH) laser-cavity "
-        r"locking, RAM typically shows up as a spurious offset and slope drift "
-        r"in the error signal. None of this is captured by the idealized model "
-        r"simulated here.")
+        r"Real modulators never achieve *pure* phase modulation. Small imperfections "
+        r"(e.g., facet reflections and polarization misalignment) add a little "
+        r"**residual amplitude modulation (RAM)** on top of the phase modulation, "
+        r"breaking the strict carrier-sideband quadrature assumed above. In precision "
+        r"applications such as Pound-Drever-Hall laser stabilization, RAM shows up as a "
+        r"small, temperature-dependent offset in the error signal that can drift the "
+        r"lock point over time. This is not captured by the idealized model here."
+    )
     st.markdown(
         "**References and further reading**\n"
         "- [Jacobi-Anger expansion](https://en.wikipedia.org/wiki/Jacobi%E2%80%93Anger_expansion)\n"
