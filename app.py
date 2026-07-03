@@ -165,11 +165,14 @@ with col_left:
         st.caption("The displayed orders account for essentially the full "
                    "optical power.")
 
+# bbox_inches=None disables Streamlit's default tight-bbox crop, which would
+# otherwise crop fig1/fig2 to different heights (they have different content,
+# e.g. fig2's legend) and throw off their vertical alignment.
 col_fig1, col_fig2 = st.columns(2)
 with col_fig1:
-    st.pyplot(fig1, use_container_width=True)
+    st.pyplot(fig1, use_container_width=True, bbox_inches=None)
 with col_fig2:
-    st.pyplot(fig2, use_container_width=True)
+    st.pyplot(fig2, use_container_width=True, bbox_inches=None)
 plt.close(fig1)      # release the figures so reruns do not accumulate in memory
 plt.close(fig2)
 
