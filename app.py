@@ -223,6 +223,19 @@ with st.expander("Physics & model details"):
         r"drive via $\beta=\pi V_\text{peak}/V_\pi$, where $V_\pi$ is the device- "
         r"and wavelength-dependent half-wave voltage (not used in this idealized "
         r"simulation).")
+    st.markdown("**Beyond the ideal case: residual amplitude modulation**")
+    st.markdown(
+        r"Real bulk modulators (e.g. MgO:LiNbO$_3$) never realize *pure* phase "
+        r"modulation. Etalon effects from imperfectly anti-reflection-coated "
+        r"crystal facets, the photoelastic effect, and piezoelectric resonances "
+        r"of the crystal all introduce a small **residual amplitude modulation "
+        r"(RAM)** on top of the intended phase modulation. RAM rotates the "
+        r"quadrature relationship between carrier and sidebands assumed above, "
+        r"where $J_0(\beta)$ stays purely real. In applications that rely on "
+        r"that relationship, such as Pound-Drever-Hall (PDH) laser-cavity "
+        r"locking, RAM typically shows up as a spurious offset and slope drift "
+        r"in the error signal. None of this is captured by the idealized model "
+        r"simulated here.")
     st.markdown(
         "**References and further reading**\n"
         "- [Jacobi-Anger expansion](https://en.wikipedia.org/wiki/Jacobi%E2%80%93Anger_expansion)\n"
@@ -230,6 +243,7 @@ with st.expander("Physics & model details"):
         "- [Electro-optic modulator](https://en.wikipedia.org/wiki/Electro-optic_modulator)\n"
         "- [Pockels effect](https://en.wikipedia.org/wiki/Pockels_effect)\n"
         "- [Phase modulation](https://en.wikipedia.org/wiki/Phase_modulation)\n"
+        "- [Pound-Drever-Hall technique](https://en.wikipedia.org/wiki/Pound%E2%80%93Drever%E2%80%93Hall_technique)\n"
         "- B. E. A. Saleh and M. C. Teich, *Fundamentals of Photonics* (electro-optics chapter)")
     st.caption(
         "Idealizations: pure phase modulation (no residual amplitude modulation), "
