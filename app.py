@@ -73,10 +73,13 @@ Jn2 = sideband_intensities(beta, N)   # |J_n(beta)|^2 for n = 0..N, shared by bo
 
 # ---------- styling to match the reference figure ----------
 GREY = '0.45'
+TEXT_COLOR = '#262730'   # matches the Streamlit theme's textColor, for a consistent look
 plt.rcParams.update({
     "axes.edgecolor": GREY, "axes.labelcolor": GREY,
     "xtick.color": GREY, "ytick.color": GREY,
     "axes.linewidth": 1.0, "font.size": 11,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Liberation Sans", "Arial", "DejaVu Sans"],
 })
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.5, 5.2), dpi=150)
@@ -112,7 +115,7 @@ ax1.set_xlim(-span, span)
 ax1.set_ylim(-0.06, 1.14)        # headroom for the order labels
 ax1.set_xlabel('Optical frequency detuning [MHz]', fontweight='bold')
 ax1.set_ylabel('Intensity [arb. units]', fontweight='bold')
-ax1.set_title('Fig. 1: Optical spectrum', fontweight='bold', color='black', pad=12)
+ax1.set_title('Fig. 1: Optical spectrum', fontweight='bold', color=TEXT_COLOR, pad=12)
 
 ax1.text(0.04, 0.95,
          f"$f_0$ = {f0:.0f} MHz\n"
@@ -134,7 +137,7 @@ ax2.axvline(beta, ls='--', color='0.7', lw=0.8, zorder=0)
 ax2.set_xlim(0, bmax)
 ax2.set_ylim(-0.06, 1.08)
 ax2.set_xlabel('Modulation depth  $\\beta$ [rad]', fontweight='bold')
-ax2.set_title('Fig. 2: Carrier/sideband ratio', fontweight='bold', color='black', pad=12)
+ax2.set_title('Fig. 2: Carrier/sideband ratio', fontweight='bold', color=TEXT_COLOR, pad=12)
 # move the y-axis to the right, like the reference figure
 ax2.yaxis.set_label_position('right')
 ax2.yaxis.tick_right()
@@ -146,42 +149,43 @@ st.header("EOM Sideband Calculator")
 st.caption("Phase-modulation sideband spectrum and its Bessel-function "
            "decomposition · line intensity $= J_n(\\beta)^2$ (Jacobi-Anger expansion)")
 
-st.divider()
+with st.container(border=True):
+    col_left, _ = st.columns([1, 2])
+    with col_left:
+        cap = captured_power(Jn2)
+        st.metric("Captured optical power", f"{cap*100:.1f} %",
+                  help="Fraction of the total optical power contained in the displayed "
+                       "sideband orders. Raise the displayed-orders count at high beta "
+                       "to account for the full spectrum.")
+        if cap < 0.98:
+            st.warning(f"**Spectral truncation:** {(1-cap)*100:.0f}% of the optical "
+                       f"power falls outside the displayed orders. Increase the number "
+                       f"of displayed sidebands to account for the full spectrum.")
+        else:
+            st.caption("The displayed orders account for essentially the full "
+                       "optical power.")
 
-col_left, _ = st.columns([2, 3])
-with col_left:
-    cap = captured_power(Jn2)
-    st.metric("Captured optical power", f"{cap*100:.1f} %",
-              help="Fraction of the total optical power contained in the displayed "
-                   "sideband orders. Raise the displayed-orders count at high beta "
-                   "to account for the full spectrum.")
-    if cap < 0.98:
-        st.warning(f"**Spectral truncation:** {(1-cap)*100:.0f}% of the optical "
-                   f"power falls outside the displayed orders. Increase the number "
-                   f"of displayed sidebands to account for the full spectrum.")
-    else:
-        st.caption("The displayed orders account for essentially the full "
-                   "optical power.")
-
-st.pyplot(fig, use_container_width=True, bbox_inches=None)
+with st.container(border=True):
+    st.pyplot(fig, use_container_width=True, bbox_inches=None)
 plt.close(fig)      # release the figure so reruns do not accumulate in memory
 
 # ---------- exact sideband intensities (table) ----------
-st.subheader("Sideband intensities")
-orders = list(range(0, N + 1))
-table = {
-    "Order": ["0 (carrier)" if n == 0 else f"±{n}" for n in orders],
-    "Detuning [MHz]": ["0" if n == 0 else f"±{n * f0:.0f}" for n in orders],
-    "Intensity per line  Jₙ(β)²": [f"{Jn2[n]:.4f}" for n in orders],
-    "Power share (both ±n)": [
-        f"{Jn2[n] * (1 if n == 0 else 2) * 100:.2f} %" for n in orders],
-}
-col_t, _ = st.columns([3, 2])
-with col_t:
-    st.dataframe(table, hide_index=True, use_container_width=True)
-    st.caption("Intensity is given per spectral line; the power share combines the "
-               "+n and -n orders, so the shares sum to the captured optical power "
-               "shown above.")
+with st.container(border=True):
+    st.subheader("Sideband intensities")
+    orders = list(range(0, N + 1))
+    table = {
+        "Order": ["0 (carrier)" if n == 0 else f"±{n}" for n in orders],
+        "Detuning [MHz]": ["0" if n == 0 else f"±{n * f0:.0f}" for n in orders],
+        "Intensity per line  Jₙ(β)²": [f"{Jn2[n]:.4f}" for n in orders],
+        "Power share (both ±n)": [
+            f"{Jn2[n] * (1 if n == 0 else 2) * 100:.2f} %" for n in orders],
+    }
+    col_t, _ = st.columns([3, 2])
+    with col_t:
+        st.dataframe(table, hide_index=True, use_container_width=True)
+        st.caption("Intensity is given per spectral line; the power share combines the "
+                   "+n and -n orders, so the shares sum to the captured optical power "
+                   "shown above.")
 
 with st.expander("Physics & model details"):
     st.markdown(
