@@ -79,10 +79,8 @@ plt.rcParams.update({
     "axes.linewidth": 1.0, "font.size": 11,
 })
 
-fig1, ax1 = plt.subplots(figsize=(6.2, 5.2), dpi=150)
-fig1.subplots_adjust(top=0.86, bottom=0.13, left=0.14, right=0.96)
-fig2, ax2 = plt.subplots(figsize=(6.2, 5.2), dpi=150)
-fig2.subplots_adjust(top=0.86, bottom=0.13, left=0.10, right=0.86)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.5, 5.2), dpi=150)
+fig.subplots_adjust(wspace=0.18, top=0.86, bottom=0.13, left=0.07, right=0.93)
 
 # ===================== Fig. 1: spectrum =====================
 span  = (N + 0.8) * f0
@@ -165,16 +163,8 @@ with col_left:
         st.caption("The displayed orders account for essentially the full "
                    "optical power.")
 
-# bbox_inches=None disables Streamlit's default tight-bbox crop, which would
-# otherwise crop fig1/fig2 to different heights (they have different content,
-# e.g. fig2's legend) and throw off their vertical alignment.
-col_fig1, col_fig2 = st.columns(2)
-with col_fig1:
-    st.pyplot(fig1, use_container_width=True, bbox_inches=None)
-with col_fig2:
-    st.pyplot(fig2, use_container_width=True, bbox_inches=None)
-plt.close(fig1)      # release the figures so reruns do not accumulate in memory
-plt.close(fig2)
+st.pyplot(fig, use_container_width=True, bbox_inches=None)
+plt.close(fig)      # release the figure so reruns do not accumulate in memory
 
 # ---------- exact sideband intensities (table) ----------
 st.subheader("Sideband intensities")
