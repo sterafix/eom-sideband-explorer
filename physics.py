@@ -7,11 +7,20 @@ from scipy.special import jv
 #  -> spectral line at n*f0 has intensity J_n(beta)^2   (Jacobi-Anger)
 # ----------------------------------------------------------------------
 
-_ORDER_COLORS = ['#1f77b4', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2']
+# Colorblind-safe palette (adjacent orders stay distinguishable under CVD);
+# the dark variants are the same hues re-stepped for a dark chart surface.
+_ORDER_COLORS = {
+    "light": ['#2a78d6', '#1baf7a', '#eda100', '#008300', '#4a3aa7', '#e34948'],
+    "dark":  ['#3987e5', '#199e70', '#c98500', '#008300', '#9085e9', '#e66767'],
+}
+_CARRIER_COLOR = {"light": "black", "dark": "#fafafa"}
 
-def color_for_n(n):
+def color_for_n(n, mode="light"):
     n = abs(n)
-    return 'black' if n == 0 else _ORDER_COLORS[(n - 1) % len(_ORDER_COLORS)]
+    if n == 0:
+        return _CARRIER_COLOR[mode]
+    palette = _ORDER_COLORS[mode]
+    return palette[(n - 1) % len(palette)]
 
 def sideband_intensities(beta, N):
     """|J_n(beta)|^2 for n = 0..N; J_{-n}(beta)^2 == J_n(beta)^2 covers the negative orders."""

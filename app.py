@@ -7,8 +7,12 @@ from physics import color_for_n, sideband_intensities, captured_power
 
 NMAX = 6        # max selectable sideband orders to display
 
-st.set_page_config(page_title="EOM Sideband Calculator",
+st.set_page_config(page_title="EOM Sideband Explorer",
                    page_icon="〰️", layout="wide")
+
+# resolve the active Streamlit theme so the matplotlib figure matches it
+MODE = "dark" if st.context.theme.type == "dark" else "light"
+IS_DARK = MODE == "dark"
 
 # ---------- preset operating points (beta, displayed orders) ----------
 PRESETS = {
@@ -22,17 +26,33 @@ PRESETS = {
 # session-state defaults must exist before the widgets are created
 if "beta" not in st.session_state:
     st.session_state.beta = 1.0
+if "beta_input" not in st.session_state:
+    st.session_state.beta_input = st.session_state.beta
 if "N" not in st.session_state:
     st.session_state.N = 2
 
+# slider and number input are two widgets over the same value; each callback
+# copies its own state to the counterpart before the next rerun draws it
+def _beta_from_slider():
+    st.session_state.beta_input = st.session_state.beta
+
+def _beta_from_input():
+    st.session_state.beta = st.session_state.beta_input
+
 def apply_preset(b, n):
     st.session_state.beta = b
+    st.session_state.beta_input = b
     st.session_state.N = n
 
 # ---------- sidebar controls ----------
 st.sidebar.title("EOM parameters")
-beta = st.sidebar.slider("Modulation depth  β [rad]", 0.0, 10.0, step=0.005, key="beta")
-f0   = st.sidebar.slider("Modulation frequency  f₀ [MHz]", 50.0, 3000.0, 1000.0, 5.0)
+beta = st.sidebar.slider("Modulation depth  β [rad]", 0.0, 10.0, step=0.005,
+                         key="beta", format="%.3f", on_change=_beta_from_slider)
+st.sidebar.number_input("Exact β [rad]", 0.0, 10.0, step=0.005, key="beta_input",
+                        format="%.3f", on_change=_beta_from_input,
+                        help="Type a precise modulation depth; the slider follows.")
+f0   = st.sidebar.slider("Modulation frequency  f₀ [MHz]", 50.0, 3000.0, 1000.0, 5.0,
+                         format="%.0f")
 N    = st.sidebar.slider(
     "Displayed sideband orders", 1, NMAX, step=1, key="N",
     help="How many sideband orders are drawn on each side of the carrier. "
@@ -53,11 +73,16 @@ with st.sidebar.expander("Display options"):
 Jn2 = sideband_intensities(beta, N)   # |J_n(beta)|^2 for n = 0..N, shared by both figures and the table
 
 # ---------- styling to match the reference figure ----------
-GREY = '0.45'
-TEXT_COLOR = '#262730'   # matches the Streamlit theme's textColor, for a consistent look
+# the figure is rendered transparent, so only the ink colors depend on the theme
+GREY = '0.65' if IS_DARK else '0.45'
+TEXT_COLOR = '#fafafa' if IS_DARK else '#262730'   # matches the Streamlit theme's textColor
+HLINE = '0.5' if IS_DARK else '0.7'                # dashed helper lines
+BOX_FC = '#262730' if IS_DARK else 'white'         # annotation-box face
+BOX_EC = '0.4' if IS_DARK else '0.8'
 plt.rcParams.update({
     "axes.edgecolor": GREY, "axes.labelcolor": GREY,
     "xtick.color": GREY, "ytick.color": GREY,
+    "text.color": TEXT_COLOR,
     "axes.linewidth": 1.0, "font.size": 11,
     "font.family": "sans-serif",
     "font.sans-serif": ["Liberation Sans", "Arial", "DejaVu Sans"],
@@ -65,6 +90,9 @@ plt.rcParams.update({
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.5, 5.2), dpi=150)
 fig.subplots_adjust(wspace=0.18, top=0.86, bottom=0.13, left=0.07, right=0.93)
+fig.patch.set_alpha(0.0)
+for ax in (ax1, ax2):
+    ax.set_facecolor('none')
 
 # ===================== Fig. 1: spectrum =====================
 span  = (N + 0.8) * f0
@@ -75,7 +103,7 @@ for n in range(-N, N + 1):
     trace += Jn2[abs(n)] * np.exp(-0.5 * ((freq - n * f0) / width)**2)
 trace += noise * np.abs(np.random.default_rng(0).normal(size=freq.shape))
 
-ax1.plot(freq, trace, color='black', lw=0.9, zorder=1)
+ax1.plot(freq, trace, color=color_for_n(0, MODE), lw=0.9, zorder=1)
 for n in range(0, N + 1):
     h = Jn2[n]
     if h <= 1e-3:
@@ -84,13 +112,13 @@ for n in range(0, N + 1):
     for c0 in centers:
         if color_peaks:
             sel = np.abs(freq - c0) < 3 * width
-            ax1.plot(freq[sel], trace[sel], color=color_for_n(n), lw=1.5, zorder=2)
+            ax1.plot(freq[sel], trace[sel], color=color_for_n(n, MODE), lw=1.5, zorder=2)
         # order label above each peak
         order_lbl = "0" if n == 0 else (f"+{n}" if c0 > 0 else f"-{n}")
         ax1.annotate(order_lbl, (c0, h), textcoords="offset points",
                      xytext=(0, 8), ha='center', fontsize=8,
-                     fontweight='bold', color=color_for_n(n), zorder=4)
-    ax1.axhline(h, ls='--', color='0.7', lw=0.8, zorder=0)
+                     fontweight='bold', color=color_for_n(n, MODE), zorder=4)
+    ax1.axhline(h, ls='--', color=HLINE, lw=0.8, zorder=0)
 
 ax1.set_xlim(-span, span)
 ax1.set_ylim(-0.06, 1.14)        # headroom for the order labels
@@ -100,33 +128,34 @@ ax1.set_title('Fig. 1: Optical spectrum', fontweight='bold', color=TEXT_COLOR, p
 
 ax1.text(0.04, 0.95,
          f"$f_0$ = {f0:.0f} MHz\n"
-         f"$\\beta$ = {beta:.2f} rad",
+         f"$\\beta$ = {beta:.3f} rad",
          transform=ax1.transAxes, va='top', ha='left', fontsize=10, color=GREY,
-         bbox=dict(boxstyle='round', fc='white', ec='0.8'))
+         bbox=dict(boxstyle='round', fc=BOX_FC, ec=BOX_EC))
 
 # ===================== Fig. 2: Bessel curves =====================
 bmax  = 10.0 if fixed_xaxis else max(3.0, beta * 1.1)
 bgrid = np.linspace(0, bmax, 800)
 for n in range(0, N + 1):
     h = Jn2[n]
-    ax2.plot(bgrid, jv(n, bgrid)**2, color=color_for_n(n), lw=2.2,
+    ax2.plot(bgrid, jv(n, bgrid)**2, color=color_for_n(n, MODE), lw=2.2,
              label=f"$|J_{{{n}}}|^2$")
-    ax2.plot([0, beta], [h, h], ls='--', color='0.7', lw=0.8, zorder=0)
-    ax2.scatter(beta, h, color=color_for_n(n), s=20, zorder=3)   # operating-point marker
-ax2.axvline(beta, ls='--', color='0.7', lw=0.8, zorder=0)
+    ax2.plot([0, beta], [h, h], ls='--', color=HLINE, lw=0.8, zorder=0)
+    ax2.scatter(beta, h, color=color_for_n(n, MODE), s=20, zorder=3)   # operating-point marker
+ax2.axvline(beta, ls='--', color=HLINE, lw=0.8, zorder=0)
 
 ax2.set_xlim(0, bmax)
 ax2.set_ylim(-0.06, 1.08)
 ax2.set_xlabel('Modulation depth  $\\beta$ [rad]', fontweight='bold')
-ax2.set_title('Fig. 2: Carrier/sideband ratio', fontweight='bold', color=TEXT_COLOR, pad=12)
+ax2.set_title('Fig. 2: Bessel curves $|J_n(\\beta)|^2$', fontweight='bold',
+              color=TEXT_COLOR, pad=12)
 # move the y-axis to the right, like the reference figure
 ax2.yaxis.set_label_position('right')
 ax2.yaxis.tick_right()
-ax2.set_ylabel('rel. Intensity', fontweight='bold')
-ax2.legend(title='Bessel Fct.', loc='upper right', frameon=False)
+ax2.set_ylabel('Relative intensity', fontweight='bold')
+ax2.legend(title='Bessel functions', loc='upper right', frameon=False)
 
 # ===================== render =====================
-st.header("EOM Sideband Calculator")
+st.header("EOM Sideband Explorer")
 st.caption("Phase-modulation sideband spectrum and its Bessel-function "
            "decomposition · line intensity $= J_n(\\beta)^2$ (Jacobi-Anger expansion)")
 
@@ -135,9 +164,8 @@ with st.container(border=True):
     with col_left:
         cap = captured_power(Jn2)
         st.metric("Captured optical power", f"{cap*100:.1f} %",
-                  help="Fraction of the total optical power contained in the displayed "
-                       "sideband orders. Raise the displayed-orders count at high beta "
-                       "to account for the full spectrum.")
+                  help="Fraction of the total optical power contained in the "
+                       "displayed sideband orders.")
     with col_right:
         if cap < 0.98:
             st.warning(f"**Spectral truncation:** {(1-cap)*100:.0f}% of the optical "
@@ -158,8 +186,8 @@ with st.container(border=True):
     table = {
         "Order": ["0 (carrier)" if n == 0 else f"±{n}" for n in orders],
         "Detuning [MHz]": ["0" if n == 0 else f"±{n * f0:.0f}" for n in orders],
-        "Intensity per line  Jₙ(β)²": [f"{Jn2[n]:.4f}" for n in orders],
-        "Power share (both ±n)": [
+        "Jₙ(β)² per line": [f"{Jn2[n]:.4f}" for n in orders],
+        "Power share (±n)": [
             f"{Jn2[n] * (1 if n == 0 else 2) * 100:.2f} %" for n in orders],
     }
     col_t, _ = st.columns([3, 2])
@@ -240,8 +268,5 @@ with st.expander("Physics & model details"):
         "Idealizations: pure phase modulation (no residual amplitude modulation), "
         "a single RF tone, and no loss.")
 
-st.caption("Interactive model of electro-optic phase modulation · "
-           "idealized pure phase modulator.")
-
-st.caption("🛠️ Code's open on GitHub if you want to peek under the hood or build "
-           "on it: https://github.com/sterafix/eom-sideband-explorer")
+st.caption("Source code on GitHub: "
+           "https://github.com/sterafix/eom-sideband-explorer")
