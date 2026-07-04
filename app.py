@@ -33,13 +33,26 @@ if "N" not in st.session_state:
 
 # slider and number input are two widgets over the same value; each callback
 # copies its own state to the counterpart before the next rerun draws it
+def _sync_preset_selection():
+    # the preset pills claim an operating point, so the highlight must track
+    # beta: light up the preset that matches, clear it when beta moves away
+    beta = st.session_state.beta
+    st.session_state.preset = next(
+        (label for label, (b, _) in PRESETS.items()
+         if abs(b - beta) < 1e-9), None)
+
 def _beta_from_slider():
     st.session_state.beta_input = st.session_state.beta
+    _sync_preset_selection()
 
 def _beta_from_input():
     st.session_state.beta = st.session_state.beta_input
+    _sync_preset_selection()
 
-def apply_preset(b, n):
+def _apply_preset():
+    if st.session_state.preset is None:
+        return          # pill was deselected; keep the current values
+    b, n = PRESETS[st.session_state.preset]
     st.session_state.beta = b
     st.session_state.beta_input = b
     st.session_state.N = n
@@ -58,10 +71,9 @@ N    = st.sidebar.slider(
     help="How many sideband orders are drawn on each side of the carrier. "
          "All orders exist physically; this only sets how many are shown.")
 
-st.sidebar.markdown("**Presets**")
-for label, (b, n) in PRESETS.items():
-    st.sidebar.button(label, on_click=apply_preset, args=(b, n),
-                      use_container_width=True)
+st.sidebar.pills("Presets", list(PRESETS), key="preset", on_change=_apply_preset,
+                 help="Common operating points. The highlight follows β: it "
+                      "clears when the sliders leave the preset value.")
 
 st.sidebar.markdown("---")
 with st.sidebar.expander("Display options"):
