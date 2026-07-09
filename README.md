@@ -120,9 +120,8 @@ including the carrier-null *Vπ* measurement and the idealizations of the model.
 ## Using and adapting this project
 
 This project is MIT-licensed (see [`LICENSE`](LICENSE)), so you are free to use,
-modify, and embed it — for example on the
-[RP Photonics Encyclopedia](https://www.rp-photonics.com/encyclopedia.html) or
-your own site. If you build on it or embed it, an attribution link back to this
+modify, and embed it, for example on
+your own website. If you build on it or embed it, an attribution link back to this
 repository is appreciated but not required.
 
 ## License
