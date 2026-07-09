@@ -1,2 +1,9 @@
+# Development dependencies — everything needed to *work on* the app.
+# Install with:  pip install -r requirements-dev.txt
+#
+# The first line pulls in the runtime dependencies (requirements.txt), then
+# adds the extra tools used only for development, such as the test runner.
+# Keeping these separate means anyone who just wants to run or deploy the app
+# installs the minimal runtime set and nothing more.
 -r requirements.txt
 pytest>=8.0,<9
