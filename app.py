@@ -24,6 +24,12 @@ from physics import color_for_n, sideband_intensities, captured_power
 
 NMAX = 6        # max selectable sideband orders to display
 
+# Shared y-limits for both figures. The two panels show the same intensities
+# (|J_n(beta)|^2), so their axes must span the same range for the dashed
+# helper lines to align visually across panels. The headroom above 1.0 leaves
+# room for the order labels in Fig. 1.
+YLIM = (-0.06, 1.14)
+
 # Preset operating points, each mapping a label to (modulation depth beta,
 # number of orders to display). The carrier-null preset sits at the first
 # zero of J_0, a standard laboratory reference point.
@@ -176,7 +182,7 @@ def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, mode,
         ax.axhline(h, ls='--', color=ink["hline"], lw=0.8, zorder=0)
 
     ax.set_xlim(-span, span)
-    ax.set_ylim(-0.06, 1.14)        # headroom for the order labels
+    ax.set_ylim(*YLIM)
     ax.set_xlabel('Optical frequency detuning [MHz]', fontweight='bold')
     ax.set_ylabel('Intensity [arb. units]', fontweight='bold')
     ax.set_title('Fig. 1: Optical spectrum', fontweight='bold', color=ink["text"], pad=12)
@@ -221,7 +227,7 @@ def draw_bessel_curves(ax, *, beta, N, Jn2, fixed_xaxis, mode, ink):
     ax.axvline(beta, ls='--', color=ink["hline"], lw=0.8, zorder=0)
 
     ax.set_xlim(0, bmax)
-    ax.set_ylim(-0.06, 1.08)
+    ax.set_ylim(*YLIM)
     ax.set_xlabel('Modulation depth  $\\beta$ [rad]', fontweight='bold')
     ax.set_title('Fig. 2: Bessel curves $|J_n(\\beta)|^2$', fontweight='bold',
                  color=ink["text"], pad=12)
