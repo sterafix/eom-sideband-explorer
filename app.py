@@ -167,14 +167,15 @@ def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, mode,
     ax.plot(freq, trace, color=color_for_n(0, mode), lw=0.9, zorder=1)
     for n in range(0, N + 1):
         h = Jn2[n]
-        if h <= 1e-3:
-            continue
         centers = [0.0] if n == 0 else [-n * f0, n * f0]
         for c0 in centers:
-            if color_peaks:
+            # Only the color highlight is skipped for vanishingly small orders
+            # (there is no visible peak in the noise floor to paint); the order
+            # label is shown regardless, so it always matches Fig. 2's curves
+            # and markers, which are drawn for every order irrespective of h.
+            if color_peaks and h > 1e-3:
                 sel = np.abs(freq - c0) < 3 * width
                 ax.plot(freq[sel], trace[sel], color=color_for_n(n, mode), lw=1.5, zorder=2)
-            # order label above each peak
             order_lbl = "0" if n == 0 else (f"+{n}" if c0 > 0 else f"-{n}")
             ax.annotate(order_lbl, (c0, h), textcoords="offset points",
                         xytext=(0, 8), ha='center', fontsize=8,
@@ -371,7 +372,9 @@ def render_physics_details():
             r"- **Fig. 1** plots each order at $n f_0$ with height $|J_n(\beta)|^2$, "
             r"annotated with its order number. The ideal lines are mathematically "
             r"sharp; for visibility they are drawn as narrow Gaussian peaks on a small "
-            r"synthetic noise floor (both adjustable under Display options)." "\n"
+            r"synthetic noise floor (both adjustable under Display options). The dashed "
+            r"guide line marks the exact $|J_n(\beta)|^2$ value, so the peak can sit a "
+            r"touch above it once noise is added." "\n"
             r"- **Fig. 2** plots $|J_n(\beta)|^2$ versus modulation depth. The marker "
             r"at your chosen $\beta$ shows that every peak height in Fig. 1 is a slice "
             r"through these Bessel curves at that $\beta$.")
