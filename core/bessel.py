@@ -2,7 +2,7 @@
 
 This module contains the numerical core of the EOM Sideband Explorer, kept
 deliberately free of any user-interface or plotting code so that it can be
-imported, reused, and unit-tested on its own (see ``test_physics.py``).
+imported, reused, and unit-tested on its own (see ``tests/test_bessel.py``).
 
 Background
 ----------
@@ -30,46 +30,6 @@ first kind. Two properties follow and are used throughout the app:
 
 import numpy as np
 from scipy.special import jv
-
-# Colorblind-safe palette for sideband orders 1, 2, 3, ... (index n-1).
-# Adjacent orders stay distinguishable under common colour-vision deficiencies;
-# the "dark" variants are the same hues re-stepped for a dark chart surface.
-_ORDER_COLORS = {
-    "light": ['#2a78d6', '#1baf7a', '#eda100', '#008300', '#4a3aa7', '#e34948'],
-    "dark":  ['#3987e5', '#199e70', '#c98500', '#008300', '#9085e9', '#e66767'],
-}
-
-# The carrier (order 0) is drawn in the theme's foreground colour instead.
-_CARRIER_COLOR = {"light": "black", "dark": "#fafafa"}
-
-
-def color_for_n(n, mode="light"):
-    """Return the plotting colour for sideband order ``n``.
-
-    The carrier (``n == 0``) uses the theme foreground colour; every other
-    order is assigned a colour from a colourblind-safe palette. Because the
-    +n and -n orders are physically identical, the sign of ``n`` is ignored.
-    The palette cycles if ``|n|`` exceeds its length.
-
-    Parameters
-    ----------
-    n : int
-        Sideband order. Positive, negative, and zero are all accepted;
-        ``color_for_n(n) == color_for_n(-n)``.
-    mode : {"light", "dark"}, optional
-        Chart surface for which to pick the colour variant. Defaults to
-        ``"light"``.
-
-    Returns
-    -------
-    str
-        A matplotlib-compatible colour (hex string or named colour).
-    """
-    n = abs(n)
-    if n == 0:
-        return _CARRIER_COLOR[mode]
-    palette = _ORDER_COLORS[mode]
-    return palette[(n - 1) % len(palette)]
 
 
 def sideband_intensities(beta, N):

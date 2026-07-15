@@ -1,4 +1,4 @@
-"""Unit tests for the physics core (``physics.py``).
+"""Unit tests for the Bessel sideband core (``core/bessel.py``).
 
 Each test pins down a physical property of phase-modulation sidebands rather
 than an implementation detail, so the suite doubles as executable documentation
@@ -9,7 +9,8 @@ import numpy as np
 import pytest
 from scipy.special import jv
 
-from physics import captured_power, color_for_n, sideband_intensities
+from core.bessel import captured_power, sideband_intensities
+from core.theming import color_for_n
 
 
 def test_energy_conservation():
