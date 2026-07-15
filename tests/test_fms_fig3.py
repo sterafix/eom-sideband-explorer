@@ -12,7 +12,6 @@ import numpy as np
 import pytest
 
 from core.fms import fms_signals
-from core.lineshapes import delta
 
 FIG3_DELTA_R = [0.05, 0.1, 0.4, 0.8, 1.6, 2.5, 3.0, 4.0]
 
