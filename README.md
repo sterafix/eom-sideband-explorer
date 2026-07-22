@@ -2,6 +2,9 @@
 > THIS BRANCH IS HIGHLY EXPERIMENTAL!!!
 > I DID LET FABLE 5 RUN FREELY, AND DID NOT YET PROPERLY REVIEW WHAT IT DID!!!
 
+> [!NOTE]
+> You can experience the developments from this repository live here: https://eom-sideband-explorer-dev.streamlit.app/
+
 # EOM Sideband Explorer
 
 An interactive [Streamlit](https://streamlit.io/) tool for visualizing the
