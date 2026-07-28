@@ -20,7 +20,8 @@ import matplotlib.pyplot as plt
 from scipy.special import jv
 import streamlit as st
 
-from physics import color_for_n, sideband_intensities, captured_power
+from physics import (color_for_n, sideband_intensities, captured_power,
+                     to_decibels, DB_FLOOR)
 
 NMAX = 6        # max selectable sideband orders to display
 
@@ -29,6 +30,11 @@ NMAX = 6        # max selectable sideband orders to display
 # helper lines to align visually across panels. The headroom above 1.0 leaves
 # room for the order labels in Fig. 1.
 YLIM = (-0.06, 1.14)
+
+# Shared y-limits for the dB view, analogous to YLIM above: the bottom sits a
+# little below the to_decibels() clipping floor (DB_FLOOR) and the top leaves
+# headroom for the order labels above the 0 dB carrier line.
+YLIM_DB = (DB_FLOOR - 4.0, 5.0)
 
 # Preset operating points, each mapping a label to (modulation depth beta,
 # number of orders to display). The carrier-null preset sits at the first
@@ -126,7 +132,30 @@ def apply_plot_style(ink):
     })
 
 
-def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, mode, ink):
+# ---------------------------------------------------------------------------
+# Y-scale plumbing
+#
+# The two figures line up only because they plot the same intensities against
+# the same vertical range: that is what lets a dashed guide line join a peak in
+# Fig. 1 to its marker in Fig. 2. To keep that true under the linear/dB toggle,
+# every plotted intensity goes through _scale_y and every axis takes its limits
+# from _ylim, so neither figure can pick up a scale the other one did not.
+# ---------------------------------------------------------------------------
+def _scale_y(values, db_scale):
+    """Map linear intensities onto the active y-scale.
+
+    Accepts a scalar or an array and returns the same shape, so peak heights,
+    marker positions, and whole traces all convert through one call.
+    """
+    return to_decibels(values) if db_scale else values
+
+
+def _ylim(db_scale):
+    """Return the y-limits shared by both figures for the active y-scale."""
+    return YLIM_DB if db_scale else YLIM
+
+
+def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, db_scale, mode, ink):
     """Draw Fig. 1: the optical power spectrum.
 
     Each order ``n`` is placed at detuning ``n * f0`` with height
@@ -151,6 +180,9 @@ def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, mode,
         Amplitude of the synthetic noise floor.
     color_peaks : bool
         Whether to overpaint each peak in its order's colour.
+    db_scale : bool
+        If ``True``, plot the trace and peak heights in decibels
+        (``10*log10``) instead of linear intensity.
     mode : {"light", "dark"}
         Theme variant used to pick peak colours.
     ink : dict
@@ -163,17 +195,21 @@ def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, mode,
     for n in range(-N, N + 1):
         trace += Jn2[abs(n)] * np.exp(-0.5 * ((freq - n * f0) / width)**2)
     trace += noise * np.abs(np.random.default_rng(0).normal(size=freq.shape))
+    trace = _scale_y(trace, db_scale)
 
     ax.plot(freq, trace, color=color_for_n(0, mode), lw=0.9, zorder=1)
     for n in range(0, N + 1):
-        h = Jn2[n]
+        h = _scale_y(Jn2[n], db_scale)
         centers = [0.0] if n == 0 else [-n * f0, n * f0]
         for c0 in centers:
             # Only the color highlight is skipped for vanishingly small orders
             # (there is no visible peak in the noise floor to paint); the order
             # label is shown regardless, so it always matches Fig. 2's curves
             # and markers, which are drawn for every order irrespective of h.
-            if color_peaks and h > 1e-3:
+            # The test is on the linear intensity, not on h: under the dB scale
+            # h is negative for every order, so comparing it here would switch
+            # the highlight off entirely.
+            if color_peaks and Jn2[n] > 1e-3:
                 sel = np.abs(freq - c0) < 3 * width
                 ax.plot(freq[sel], trace[sel], color=color_for_n(n, mode), lw=1.5, zorder=2)
             order_lbl = "0" if n == 0 else (f"+{n}" if c0 > 0 else f"-{n}")
@@ -183,9 +219,9 @@ def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, mode,
         ax.axhline(h, ls='--', color=ink["hline"], lw=0.8, zorder=0)
 
     ax.set_xlim(-span, span)
-    ax.set_ylim(*YLIM)
+    ax.set_ylim(*_ylim(db_scale))
     ax.set_xlabel('Optical frequency detuning [MHz]', fontweight='bold')
-    ax.set_ylabel('Intensity [arb. units]', fontweight='bold')
+    ax.set_ylabel('Intensity [dB]' if db_scale else 'Intensity [arb. units]', fontweight='bold')
     ax.set_title('Fig. 1: Optical spectrum', fontweight='bold', color=ink["text"], pad=12)
     ax.text(0.04, 0.95,
             f"$f_0$ = {f0:.0f} MHz\n"
@@ -194,7 +230,7 @@ def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, mode,
             bbox=dict(boxstyle='round', fc=ink["box_fc"], ec=ink["box_ec"]))
 
 
-def draw_bessel_curves(ax, *, beta, N, Jn2, fixed_xaxis, mode, ink):
+def draw_bessel_curves(ax, *, beta, N, Jn2, fixed_xaxis, db_scale, mode, ink):
     """Draw Fig. 2: ``|J_n(beta)|^2`` versus modulation depth.
 
     A marker at the chosen ``beta`` sits on each curve, showing that the peak
@@ -212,6 +248,9 @@ def draw_bessel_curves(ax, *, beta, N, Jn2, fixed_xaxis, mode, ink):
         Per-line intensities for orders ``0..N`` (marker heights).
     fixed_xaxis : bool
         If ``True``, pin the beta-axis to 0-10; otherwise scale it to beta.
+    db_scale : bool
+        If ``True``, plot the curves and markers in decibels (``10*log10``)
+        instead of linear intensity.
     mode : {"light", "dark"}
         Theme variant used to pick curve colours.
     ink : dict
@@ -220,27 +259,29 @@ def draw_bessel_curves(ax, *, beta, N, Jn2, fixed_xaxis, mode, ink):
     bmax = 10.0 if fixed_xaxis else max(3.0, beta * 1.1)
     bgrid = np.linspace(0, bmax, 800)
     for n in range(0, N + 1):
-        h = Jn2[n]
-        ax.plot(bgrid, jv(n, bgrid)**2, color=color_for_n(n, mode), lw=2.2,
+        curve = _scale_y(jv(n, bgrid)**2, db_scale)
+        h = _scale_y(Jn2[n], db_scale)
+        ax.plot(bgrid, curve, color=color_for_n(n, mode), lw=2.2,
                 label=f"$|J_{{{n}}}|^2$")
         ax.plot([0, beta], [h, h], ls='--', color=ink["hline"], lw=0.8, zorder=0)
         ax.scatter(beta, h, color=color_for_n(n, mode), s=20, zorder=3)   # operating-point marker
     ax.axvline(beta, ls='--', color=ink["hline"], lw=0.8, zorder=0)
 
     ax.set_xlim(0, bmax)
-    ax.set_ylim(*YLIM)
+    ax.set_ylim(*_ylim(db_scale))
     ax.set_xlabel('Modulation depth  $\\beta$ [rad]', fontweight='bold')
     ax.set_title('Fig. 2: Bessel curves $|J_n(\\beta)|^2$', fontweight='bold',
                  color=ink["text"], pad=12)
     # move the y-axis to the right, like the reference figure
     ax.yaxis.set_label_position('right')
     ax.yaxis.tick_right()
-    ax.set_ylabel('Relative intensity', fontweight='bold')
+    ax.set_ylabel('Relative intensity [dB]' if db_scale else 'Relative intensity',
+                  fontweight='bold')
     ax.legend(title='Bessel functions', loc='upper right', frameon=False)
 
 
 def build_figure(*, beta, f0, N, Jn2, width_frac, noise, color_peaks,
-                 fixed_xaxis, mode, ink):
+                 fixed_xaxis, db_scale, mode, ink):
     """Build and return the two-panel matplotlib figure (spectrum + Bessel curves)."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.5, 5.2), dpi=150)
     fig.subplots_adjust(wspace=0.18, top=0.86, bottom=0.13, left=0.07, right=0.93)
@@ -249,9 +290,10 @@ def build_figure(*, beta, f0, N, Jn2, width_frac, noise, color_peaks,
         ax.set_facecolor('none')
 
     draw_spectrum(ax1, beta=beta, f0=f0, N=N, Jn2=Jn2, width_frac=width_frac,
-                  noise=noise, color_peaks=color_peaks, mode=mode, ink=ink)
+                  noise=noise, color_peaks=color_peaks, db_scale=db_scale,
+                  mode=mode, ink=ink)
     draw_bessel_curves(ax2, beta=beta, N=N, Jn2=Jn2, fixed_xaxis=fixed_xaxis,
-                       mode=mode, ink=ink)
+                       db_scale=db_scale, mode=mode, ink=ink)
     return fig
 
 
@@ -264,7 +306,7 @@ def render_sidebar():
     Returns
     -------
     tuple
-        ``(beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis)``.
+        ``(beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale)``.
     """
     st.sidebar.title("EOM parameters")
     beta = st.sidebar.slider("Modulation depth  β [rad]", 0.0, 10.0, step=0.005,
@@ -284,13 +326,22 @@ def render_sidebar():
                           "clears when the sliders leave the preset value.")
 
     st.sidebar.markdown("---")
+    scale_choice = st.sidebar.radio(
+        "Y-axis scale", ["Linear", "dB"], horizontal=True, key="scale_choice",
+        help="Linear shows intensity on 0-1; dB (10·log₁₀, referenced to the "
+             "unmodulated carrier) compresses the huge range between the carrier "
+             "and the higher-order sidebands, the way a spectrum analyzer "
+             "displays a spectrum. Applies to both figures, so the dashed guide "
+             "lines stay aligned.")
+    db_scale = scale_choice == "dB"
+
     with st.sidebar.expander("Display options"):
         width_frac = st.slider("Peak width", 0.003, 0.040, 0.012, 0.001, format="%.3f")
         noise = st.slider("Noise level", 0.0, 0.030, 0.004, 0.001, format="%.3f")
         color_peaks = st.checkbox("Color-code peaks", True)
         fixed_xaxis = st.checkbox("Fix β-axis to 0–10", False)
 
-    return beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis
+    return beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale
 
 
 def render_metrics(Jn2):
@@ -377,7 +428,17 @@ def render_physics_details():
             r"touch above it once noise is added." "\n"
             r"- **Fig. 2** plots $|J_n(\beta)|^2$ versus modulation depth. The marker "
             r"at your chosen $\beta$ shows that every peak height in Fig. 1 is a slice "
-            r"through these Bessel curves at that $\beta$.")
+            r"through these Bessel curves at that $\beta$." "\n"
+            r"- **Y-axis scale.** The *dB* setting plots $10\log_{10}|J_n(\beta)|^2$ on "
+            r"both figures, referenced to unit power ($0$ dB, the whole beam in the "
+            r"carrier before modulation). Sideband intensity falls off steeply with "
+            r"order, so on a linear axis the higher orders sit indistinguishably on "
+            r"zero; in dB each is placed at its true height, which is what makes the "
+            r"weaker orders and the Fig. 2 curves readable. In Fig. 1 an order that "
+            r"falls below the synthetic noise floor stays buried in it, just as it "
+            r"would be on a real analyzer. Values are floored at "
+            rf"${DB_FLOOR:.0f}$ dB so the Bessel nulls, where the intensity is exactly "
+            r"zero, stay on scale.")
         st.markdown(
             r"You set $\beta$ (the peak phase deviation), the line spacing $f_0$, and "
             r"how many orders to display. On real hardware $\beta$ follows from the RF "
@@ -428,7 +489,7 @@ def main():
     ink = theme_ink(mode == "dark")
 
     init_session_state()
-    beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis = render_sidebar()
+    beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale = render_sidebar()
 
     # |J_n(beta)|^2 for n = 0..N, shared by both figures and the table.
     Jn2 = sideband_intensities(beta, N)
@@ -436,7 +497,7 @@ def main():
     apply_plot_style(ink)
     fig = build_figure(beta=beta, f0=f0, N=N, Jn2=Jn2, width_frac=width_frac,
                        noise=noise, color_peaks=color_peaks,
-                       fixed_xaxis=fixed_xaxis, mode=mode, ink=ink)
+                       fixed_xaxis=fixed_xaxis, db_scale=db_scale, mode=mode, ink=ink)
 
     st.header("EOM Sideband Explorer")
     st.caption("Phase-modulation sideband spectrum and its Bessel-function "

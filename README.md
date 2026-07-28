@@ -21,6 +21,9 @@ the optical spectrum and the underlying Bessel functions update side by side.
   number of sideband orders to display.
 - **Preset operating points**, including the *carrier null* at *β ≈ 2.4048* used
   in the lab to measure a modulator's half-wave voltage *Vπ*.
+- **Linear / dB y-axis toggle** that switches both figures together, keeping
+  their guide lines aligned, so the weaker sideband orders are placed at their
+  true height instead of collapsing onto zero.
 - **Captured-power readout** with a spectral-truncation warning when the
   displayed orders miss a noticeable fraction of the optical power.
 - **Exact intensity table** of *Jₙ(β)²* per line and the combined ±*n* power
@@ -60,9 +63,10 @@ reused, and tested independently of the user interface:
 
 | File                    | Responsibility                                                        |
 | ----------------------- | --------------------------------------------------------------------- |
-| `physics.py`            | The numerical core — sideband intensities, captured power, and colours. No UI or plotting code, so it can be imported and unit-tested on its own. |
+| `physics.py`            | The numerical core — sideband intensities, captured power, the decibel conversion, and colours. No UI or plotting code, so it can be imported and unit-tested on its own. |
 | `app.py`                | The Streamlit user interface — reads the controls, calls `physics.py`, and draws the figures. |
 | `test_physics.py`       | Unit tests that pin down the physical properties of the model (energy conservation, symmetry, the carrier null, …). |
+| `test_app.py`           | Tests that the two figures stay on one shared vertical scale, so the guide lines still connect them on either y-axis setting. |
 | `requirements.txt`      | Runtime dependencies — everything needed to *run* the app.            |
 | `requirements-dev.txt`  | Development dependencies — the runtime set plus tools like the test runner. |
 | `.streamlit/config.toml`| Streamlit theme settings.                                             |
@@ -89,8 +93,9 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-The tests cover the physics core only (`physics.py`); they run in well under a
-second and require no display or browser.
+The tests cover the physics core (`physics.py`) and the figure invariants that
+keep the two panels aligned (`app.py`, rendered through matplotlib's Agg
+backend). They run in a couple of seconds and require no display or browser.
 
 ## The physics in brief
 

@@ -42,6 +42,11 @@ _ORDER_COLORS = {
 # The carrier (order 0) is drawn in the theme's foreground colour instead.
 _CARRIER_COLOR = {"light": "black", "dark": "#fafafa"}
 
+# Lowest dB value plotted, standing in for -inf at zero intensity. Chosen to sit
+# just below the default synthetic noise floor (~-26 dB median), so the noise
+# still reads as noise rather than filling the panel with deep log spikes.
+DB_FLOOR = -40.0
+
 
 def color_for_n(n, mode="light"):
     """Return the plotting colour for sideband order ``n``.
@@ -115,3 +120,34 @@ def captured_power(Jn2):
         higher order.
     """
     return float(Jn2[0] + 2 * Jn2[1:].sum())
+
+
+def to_decibels(intensity, floor_db=DB_FLOOR):
+    """Convert a linear intensity (power ratio) to decibels.
+
+    Intensities here are relative to unit optical power, so 0 dB is the
+    reference and, because power is conserved (``sum_n |J_n(beta)|^2 == 1``),
+    no single line can exceed it. That makes 0 dB a physically meaningful
+    ceiling for both figures.
+
+    The input is clipped to the linear equivalent of ``floor_db`` *before* the
+    logarithm, so exact zeros -- the Bessel nulls, and the gaps between peaks
+    when noise is switched off -- yield the floor rather than ``-inf``, with no
+    intermediate infinities to suppress.
+
+    Parameters
+    ----------
+    intensity : float or numpy.ndarray
+        Linear intensity value(s), expected in ``[0, 1]``.
+    floor_db : float, optional
+        Lowest dB value returned, corresponding to the clipping floor.
+        Defaults to :data:`DB_FLOOR`.
+
+    Returns
+    -------
+    numpy.float64 or numpy.ndarray
+        ``10 * log10(intensity)``, floored at ``floor_db``. Scalar input gives
+        a scalar back, so callers can use it directly as a coordinate.
+    """
+    floor_linear = 10 ** (floor_db / 10)
+    return 10 * np.log10(np.clip(intensity, floor_linear, None))
