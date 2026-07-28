@@ -21,6 +21,9 @@ the optical spectrum and the underlying Bessel functions update side by side.
   number of sideband orders to display.
 - **Preset operating points**, including the *carrier null* at *β ≈ 2.4048* used
   in the lab to measure a modulator's half-wave voltage *Vπ*.
+- **Linear / dB y-axis toggle** that switches both figures together, so weak
+  higher-order sidebands stay readable the way they appear on a spectrum
+  analyzer.
 - **Captured-power readout** with a spectral-truncation warning when the
   displayed orders miss a noticeable fraction of the optical power.
 - **Exact intensity table** of *Jₙ(β)²* per line and the combined ±*n* power

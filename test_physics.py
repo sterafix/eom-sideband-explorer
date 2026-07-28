@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from scipy.special import jv
 
-from physics import captured_power, color_for_n, sideband_intensities
+from physics import DB_FLOOR, captured_power, color_for_n, sideband_intensities, to_db
 
 
 def test_energy_conservation():
@@ -46,6 +46,25 @@ def test_sideband_intensities_shape_and_bounds():
     assert Jn2.shape == (6,)
     assert np.all(Jn2 >= 0.0)
     assert np.all(Jn2 <= 1.0)
+
+
+def test_to_db_reference_values():
+    """Full scale is 0 dB, half power is -3 dB, and a factor 100 is -20 dB."""
+    assert to_db(1.0) == pytest.approx(0.0)
+    assert to_db(0.5) == pytest.approx(-3.0103, abs=1e-4)
+    assert to_db(0.01) == pytest.approx(-20.0)
+
+
+def test_to_db_floors_zero_instead_of_diverging():
+    """A Bessel null gives exactly zero intensity, which must map to the floor."""
+    assert to_db(0.0) == pytest.approx(DB_FLOOR)
+    assert np.all(np.isfinite(to_db(sideband_intensities(2.4048255577, N=6))))
+
+
+def test_to_db_is_monotonic_over_the_intensity_range():
+    """Ordering is preserved, so the dB view ranks sidebands like the linear one."""
+    x = np.linspace(1e-6, 1.0, 500)
+    assert np.all(np.diff(to_db(x)) > 0)
 
 
 def test_color_for_n_matches_negative_order_and_never_raises():

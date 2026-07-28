@@ -94,6 +94,32 @@ def sideband_intensities(beta, N):
     return jv(np.arange(N + 1), beta)**2
 
 
+DB_FLOOR = -80.0    # dB value used in place of -inf for zero/near-zero intensities
+
+
+def to_db(x, floor_db=DB_FLOOR):
+    """Convert a linear intensity (power ratio) to decibels: ``10*log10(x)``.
+
+    Values are clipped to ``floor_db`` before conversion so exact zeros (e.g.
+    the carrier at a Bessel null) map to a finite floor instead of ``-inf``.
+
+    Parameters
+    ----------
+    x : float or numpy.ndarray
+        Linear intensity value(s), expected in ``[0, 1]``.
+    floor_db : float, optional
+        Lowest dB value returned, corresponding to the clipping floor.
+        Defaults to :data:`DB_FLOOR`.
+
+    Returns
+    -------
+    float or numpy.ndarray
+        ``x`` expressed in decibels, floored at ``floor_db``.
+    """
+    floor_lin = 10 ** (floor_db / 10)
+    return 10 * np.log10(np.clip(x, floor_lin, None))
+
+
 def captured_power(Jn2):
     """Return the total optical power contained in a set of sideband orders.
 
