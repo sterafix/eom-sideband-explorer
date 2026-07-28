@@ -42,6 +42,11 @@ _ORDER_COLORS = {
 # The carrier (order 0) is drawn in the theme's foreground colour instead.
 _CARRIER_COLOR = {"light": "black", "dark": "#fafafa"}
 
+# Lowest dB value plotted, standing in for -inf at zero intensity. Chosen to sit
+# just below the default synthetic noise floor (~-26 dB median), so the noise
+# still reads as noise rather than filling the panel with deep log spikes.
+DB_FLOOR = -40.0
+
 
 def color_for_n(n, mode="light"):
     """Return the plotting colour for sideband order ``n``.
@@ -94,14 +99,31 @@ def sideband_intensities(beta, N):
     return jv(np.arange(N + 1), beta)**2
 
 
-# Lowest dB value plotted, standing in for -inf at zero intensity. Chosen to sit
-# just below the default synthetic noise floor (~-26 dB median), so the noise
-# still reads as noise rather than filling the panel with deep log spikes.
-DB_FLOOR = -40.0
+def captured_power(Jn2):
+    """Return the total optical power contained in a set of sideband orders.
+
+    Sums the intensities of the carrier and both (+n and -n) copies of every
+    higher order. For a complete spectrum this approaches ``1.0`` (energy
+    conservation); for a truncated set of orders it is the fraction of the
+    optical power captured by those orders.
+
+    Parameters
+    ----------
+    Jn2 : numpy.ndarray
+        Per-line intensities for orders ``0..N``, as returned by
+        :func:`sideband_intensities`. Element 0 is the carrier.
+
+    Returns
+    -------
+    float
+        ``Jn2[0] + 2 * sum(Jn2[1:])`` — the carrier plus both sides of each
+        higher order.
+    """
+    return float(Jn2[0] + 2 * Jn2[1:].sum())
 
 
 def to_decibels(intensity, floor_db=DB_FLOOR):
-    """Convert a linear intensity (power ratio) to decibels: ``10*log10(x)``.
+    """Convert a linear intensity (power ratio) to decibels.
 
     Intensities here are relative to unit optical power, so 0 dB is the
     reference and, because power is conserved (``sum_n |J_n(beta)|^2 == 1``),
@@ -124,32 +146,8 @@ def to_decibels(intensity, floor_db=DB_FLOOR):
     Returns
     -------
     numpy.float64 or numpy.ndarray
-        ``intensity`` expressed in decibels, floored at ``floor_db``. Scalar
-        input gives a scalar back, so callers can use it directly as a
-        coordinate.
+        ``10 * log10(intensity)``, floored at ``floor_db``. Scalar input gives
+        a scalar back, so callers can use it directly as a coordinate.
     """
     floor_linear = 10 ** (floor_db / 10)
     return 10 * np.log10(np.clip(intensity, floor_linear, None))
-
-
-def captured_power(Jn2):
-    """Return the total optical power contained in a set of sideband orders.
-
-    Sums the intensities of the carrier and both (+n and -n) copies of every
-    higher order. For a complete spectrum this approaches ``1.0`` (energy
-    conservation); for a truncated set of orders it is the fraction of the
-    optical power captured by those orders.
-
-    Parameters
-    ----------
-    Jn2 : numpy.ndarray
-        Per-line intensities for orders ``0..N``, as returned by
-        :func:`sideband_intensities`. Element 0 is the carrier.
-
-    Returns
-    -------
-    float
-        ``Jn2[0] + 2 * sum(Jn2[1:])`` — the carrier plus both sides of each
-        higher order.
-    """
-    return float(Jn2[0] + 2 * Jn2[1:].sum())

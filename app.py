@@ -34,7 +34,7 @@ YLIM = (-0.06, 1.14)
 # Shared y-limits for the dB view, analogous to YLIM above: the bottom sits a
 # little below the to_decibels() clipping floor (DB_FLOOR) and the top leaves
 # headroom for the order labels above the 0 dB carrier line.
-YLIM_DB = (DB_FLOOR - 4, 5)
+YLIM_DB = (DB_FLOOR - 4.0, 5.0)
 
 # Preset operating points, each mapping a label to (modulation depth beta,
 # number of orders to display). The carrier-null preset sits at the first
@@ -206,6 +206,9 @@ def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, db_sc
             # (there is no visible peak in the noise floor to paint); the order
             # label is shown regardless, so it always matches Fig. 2's curves
             # and markers, which are drawn for every order irrespective of h.
+            # The test is on the linear intensity, not on h: under the dB scale
+            # h is negative for every order, so comparing it here would switch
+            # the highlight off entirely.
             if color_peaks and Jn2[n] > 1e-3:
                 sel = np.abs(freq - c0) < 3 * width
                 ax.plot(freq[sel], trace[sel], color=color_for_n(n, mode), lw=1.5, zorder=2)
@@ -427,10 +430,13 @@ def render_physics_details():
             r"at your chosen $\beta$ shows that every peak height in Fig. 1 is a slice "
             r"through these Bessel curves at that $\beta$." "\n"
             r"- **Y-axis scale.** The *dB* setting plots $10\log_{10}|J_n(\beta)|^2$ on "
-            r"both figures, referenced to the unmodulated carrier ($0$ dB). Sideband "
-            r"intensity falls off steeply with order, so on a linear axis the higher "
-            r"orders are indistinguishable from zero; in dB they remain readable, as "
-            r"they are on a spectrum analyzer. Values are floored at "
+            r"both figures, referenced to unit power ($0$ dB, the whole beam in the "
+            r"carrier before modulation). Sideband intensity falls off steeply with "
+            r"order, so on a linear axis the higher orders sit indistinguishably on "
+            r"zero; in dB each is placed at its true height, which is what makes the "
+            r"weaker orders and the Fig. 2 curves readable. In Fig. 1 an order that "
+            r"falls below the synthetic noise floor stays buried in it, just as it "
+            r"would be on a real analyzer. Values are floored at "
             rf"${DB_FLOOR:.0f}$ dB so the Bessel nulls, where the intensity is exactly "
             r"zero, stay on scale.")
         st.markdown(
