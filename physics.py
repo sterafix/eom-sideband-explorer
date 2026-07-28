@@ -94,7 +94,10 @@ def sideband_intensities(beta, N):
     return jv(np.arange(N + 1), beta)**2
 
 
-DB_FLOOR = -80.0    # dB value used in place of -inf for zero/near-zero intensities
+# Lowest dB value plotted, standing in for -inf at zero intensity. Chosen to sit
+# just below the default synthetic noise floor (~-26 dB median), so the noise
+# still reads as noise rather than filling the panel with deep log spikes.
+DB_FLOOR = -40.0
 
 
 def to_db(x, floor_db=DB_FLOOR):

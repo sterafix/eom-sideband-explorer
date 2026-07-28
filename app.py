@@ -33,7 +33,7 @@ YLIM = (-0.06, 1.14)
 # Shared y-limits for the dB view, analogous to YLIM above: the bottom sits a
 # little below the to_db() clipping floor (DB_FLOOR) and the top leaves
 # headroom for the order labels above the 0 dB carrier line.
-YLIM_DB = (DB_FLOOR - 5, 8)
+YLIM_DB = (DB_FLOOR - 4, 5)
 
 # Preset operating points, each mapping a label to (modulation depth beta,
 # number of orders to display). The carrier-null preset sits at the first
