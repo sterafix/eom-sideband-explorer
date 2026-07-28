@@ -6,8 +6,8 @@ the dashed guide line drawn at a peak in Fig. 1 lands exactly on that order's
 marker in Fig. 2. The linear/dB toggle is the thing most able to break it, so
 it is exercised on both settings.
 
-The spectral-truncation advice is checked here too, since it must never point
-at a setting the sidebar cannot reach.
+The spectral-truncation message is checked here too, since its advice must
+never point at a setting the sidebar cannot reach.
 
 Rendering uses the non-interactive Agg backend, so the suite still needs no
 display or browser.
@@ -20,9 +20,9 @@ import matplotlib.pyplot as plt          # noqa: E402
 import numpy as np                       # noqa: E402
 import pytest                            # noqa: E402
 
-from app import (NMAX, POWER_COMPLETE, PRESETS, YLIM, YLIM_DB,  # noqa: E402
-                 apply_plot_style, build_figure, theme_ink, truncation_advice)
-from physics import orders_for_power, sideband_intensities  # noqa: E402
+from app import (NMAX, PRESETS, YLIM, YLIM_DB, apply_plot_style,  # noqa: E402
+                 build_figure, theme_ink, truncation_message)
+from physics import sideband_intensities  # noqa: E402
 
 # Every preset operating point, on both y-scales.
 CASES = [(beta, N, db) for beta, N in PRESETS.values() for db in (False, True)]
@@ -81,15 +81,13 @@ def test_nothing_drawn_is_infinite(beta, N, db_scale):
     plt.close(fig)
 
 
-def test_truncation_advice_only_asks_for_orders_the_slider_offers():
-    """Advising more orders is only honest while the slider can still deliver them.
+@pytest.mark.parametrize("N", range(1, NMAX + 1))
+def test_truncation_message_only_advises_while_the_slider_has_room(N):
+    """The "display more orders" advice must disappear once the slider is maxed.
 
-    Past that point the deep-modulation wording must take over, so the message
-    never sends the user after a setting that does not exist. The sweep covers
-    the whole beta slider at its own step size.
+    Below the maximum it has to be present, since it is the whole reason the
+    warning is worth reading.
     """
-    for beta in np.arange(0.005, 10.001, 0.005):
-        needed = orders_for_power(beta, POWER_COMPLETE)
-        advice = truncation_advice(beta)
-        assert advice.startswith("Raise") == (needed <= NMAX), f"β = {beta}"
-        assert str(needed) in advice
+    message = truncation_message(0.75, N)
+    assert message.startswith("**Spectral truncation:** 25% of the optical power")
+    assert ("Increase the number of displayed sideband orders" in message) == (N < NMAX)

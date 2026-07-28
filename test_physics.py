@@ -10,7 +10,7 @@ import pytest
 from scipy.special import jv
 
 from physics import (DB_FLOOR, captured_power, color_for_n, intensity_vs_beta,
-                     orders_for_power, sideband_intensities, to_decibels)
+                     sideband_intensities, to_decibels)
 
 
 def test_energy_conservation():
@@ -78,27 +78,6 @@ def test_intensity_vs_beta_carrier_starts_at_full_power():
     assert intensity_vs_beta(0, 0.0) == pytest.approx(1.0)
     for n in range(1, 5):
         assert intensity_vs_beta(n, 0.0) == pytest.approx(0.0)
-
-
-def test_orders_for_power_is_the_first_order_reaching_the_threshold():
-    """The returned order clears the threshold and the one below it does not."""
-    for beta in [0.5, 1.0, 2.405, 5.0, 7.82, 10.0]:
-        n = orders_for_power(beta, 0.98)
-        assert captured_power(sideband_intensities(beta, n)) >= 0.98
-        assert captured_power(sideband_intensities(beta, n - 1)) < 0.98
-
-
-def test_orders_for_power_grows_with_modulation_depth():
-    """Deeper modulation spreads power outwards, so more orders are needed."""
-    counts = [orders_for_power(beta, 0.98) for beta in np.arange(0.0, 10.1, 0.5)]
-    assert counts[0] == 0                       # unmodulated: the carrier alone
-    assert np.all(np.diff(counts) >= 0)
-    assert counts[-1] > counts[0]
-
-
-def test_orders_for_power_caps_at_the_search_limit():
-    """An unreachable threshold returns the cap instead of searching forever."""
-    assert orders_for_power(3.0, threshold=1.5, search_limit=8) == 8
 
 
 def test_to_decibels_reference_values():
