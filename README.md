@@ -24,8 +24,10 @@ the optical spectrum and the underlying Bessel functions update side by side.
 - **Linear / dB y-axis toggle** that switches both figures together, keeping
   their guide lines aligned, so the weaker sideband orders are placed at their
   true height instead of collapsing onto zero.
-- **Captured-power readout** with a spectral-truncation warning when the
-  displayed orders miss a noticeable fraction of the optical power.
+- **Captured-power readout** that confirms when the displayed orders hold
+  essentially the whole spectrum, and otherwise warns how much power falls
+  outside them — naming the order count the current *β* would actually need,
+  or saying so when that is more than the display can show.
 - **Exact intensity table** of *Jₙ(β)²* per line and the combined ±*n* power
   share for each order.
 - **Colourblind-safe, theme-aware figures** that follow Streamlit's light/dark

@@ -149,6 +149,43 @@ def captured_power(Jn2):
     return float(Jn2[0] + 2 * Jn2[1:].sum())
 
 
+def orders_for_power(beta, threshold, search_limit=64):
+    """Return the lowest order ``N`` whose lines hold ``threshold`` of the power.
+
+    Answers the question the captured-power readout raises: how many orders
+    would have to be displayed for the spectrum to be essentially complete?
+    Orders are added in pairs (``+n`` and ``-n``) until the running total of
+    :func:`captured_power` reaches ``threshold``.
+
+    Sideband power spreads out roughly as far as ``|n| ~ beta``, so the answer
+    grows with the modulation depth and can exceed what a caller is willing (or
+    able) to display -- which is exactly what makes it worth reporting.
+
+    Parameters
+    ----------
+    beta : float
+        Modulation depth in radians.
+    threshold : float
+        Fraction of the total optical power to reach, in ``[0, 1]``.
+    search_limit : int, optional
+        Highest order considered. The returned value is capped at this order,
+        which the default of 64 puts far beyond the ``beta <= 10`` the app
+        allows.
+
+    Returns
+    -------
+    int
+        Smallest ``N`` with ``captured_power(sideband_intensities(beta, N))
+        >= threshold``, or ``search_limit`` if the threshold is out of reach.
+    """
+    Jn2 = sideband_intensities(beta, search_limit)
+    # Running captured_power over N = 0, 1, ...: the carrier once, then both
+    # copies of every higher order.
+    cumulative = np.cumsum(np.concatenate(([Jn2[0]], 2.0 * Jn2[1:])))
+    reached = np.flatnonzero(cumulative >= threshold)
+    return int(reached[0]) if reached.size else search_limit
+
+
 def to_decibels(intensity, floor_db=DB_FLOOR):
     """Convert a linear intensity (power ratio) to decibels.
 
