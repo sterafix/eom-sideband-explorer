@@ -99,6 +99,33 @@ def sideband_intensities(beta, N):
     return jv(np.arange(N + 1), beta)**2
 
 
+def intensity_vs_beta(n, beta):
+    """Return the intensity ``|J_n(beta)|^2`` of one order across many ``beta``.
+
+    This is the transpose of :func:`sideband_intensities`, which evaluates many
+    orders at a single modulation depth; here a single order is swept over a
+    range of modulation depths. Fig. 2 of the app plots one such sweep per
+    order, and every marker on it is the matching entry of
+    :func:`sideband_intensities` -- the two functions agree by construction
+    because both evaluate the same ``|J_n(beta)|^2``.
+
+    Parameters
+    ----------
+    n : int
+        Sideband order. As everywhere in this module the sign is irrelevant,
+        since ``|J_{-n}(beta)|^2 == |J_n(beta)|^2``.
+    beta : float or numpy.ndarray
+        Modulation depth(s) in radians, typically a grid from
+        :func:`numpy.linspace`.
+
+    Returns
+    -------
+    numpy.float64 or numpy.ndarray
+        ``|J_n(beta)|^2``, with the same shape as ``beta``.
+    """
+    return jv(abs(n), beta)**2
+
+
 def captured_power(Jn2):
     """Return the total optical power contained in a set of sideband orders.
 

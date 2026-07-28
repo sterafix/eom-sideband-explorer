@@ -17,11 +17,10 @@ Run locally with ``streamlit run app.py``.
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.special import jv
 import streamlit as st
 
-from physics import (color_for_n, sideband_intensities, captured_power,
-                     to_decibels, DB_FLOOR)
+from physics import (color_for_n, sideband_intensities, intensity_vs_beta,
+                     captured_power, to_decibels, DB_FLOOR)
 
 NMAX = 6        # max selectable sideband orders to display
 
@@ -259,7 +258,7 @@ def draw_bessel_curves(ax, *, beta, N, Jn2, fixed_xaxis, db_scale, mode, ink):
     bmax = 10.0 if fixed_xaxis else max(3.0, beta * 1.1)
     bgrid = np.linspace(0, bmax, 800)
     for n in range(0, N + 1):
-        curve = _scale_y(jv(n, bgrid)**2, db_scale)
+        curve = _scale_y(intensity_vs_beta(n, bgrid), db_scale)
         h = _scale_y(Jn2[n], db_scale)
         ax.plot(bgrid, curve, color=color_for_n(n, mode), lw=2.2,
                 label=f"$|J_{{{n}}}|^2$")

@@ -9,8 +9,8 @@ import numpy as np
 import pytest
 from scipy.special import jv
 
-from physics import (DB_FLOOR, captured_power, color_for_n, sideband_intensities,
-                     to_decibels)
+from physics import (DB_FLOOR, captured_power, color_for_n, intensity_vs_beta,
+                     sideband_intensities, to_decibels)
 
 
 def test_energy_conservation():
@@ -47,6 +47,37 @@ def test_sideband_intensities_shape_and_bounds():
     assert Jn2.shape == (6,)
     assert np.all(Jn2 >= 0.0)
     assert np.all(Jn2 <= 1.0)
+
+
+def test_intensity_vs_beta_agrees_with_sideband_intensities():
+    """Fig. 2's curves pass exactly through Fig. 1's peak heights.
+
+    The two figures are only consistent because both read the same
+    ``|J_n(beta)|^2``: the curve sampled at the operating point must equal the
+    per-line intensity used for the peak, or the markers would sit off-curve.
+    """
+    beta, N = 2.7, 6
+    Jn2 = sideband_intensities(beta, N)
+    for n in range(N + 1):
+        assert intensity_vs_beta(n, beta) == pytest.approx(Jn2[n], rel=1e-12)
+
+
+def test_intensity_vs_beta_ignores_order_sign_and_keeps_grid_shape():
+    """The sign of the order is irrelevant, and a beta grid maps element-wise."""
+    grid = np.linspace(0.0, 10.0, 64)
+    for n in range(4):
+        assert np.allclose(intensity_vs_beta(-n, grid), intensity_vs_beta(n, grid))
+    curve = intensity_vs_beta(2, grid)
+    assert curve.shape == grid.shape
+    assert np.all(curve >= 0.0)
+    assert np.all(curve <= 1.0)
+
+
+def test_intensity_vs_beta_carrier_starts_at_full_power():
+    """With no modulation all power is in the carrier and none in the sidebands."""
+    assert intensity_vs_beta(0, 0.0) == pytest.approx(1.0)
+    for n in range(1, 5):
+        assert intensity_vs_beta(n, 0.0) == pytest.approx(0.0)
 
 
 def test_to_decibels_reference_values():
