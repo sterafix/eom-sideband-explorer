@@ -100,15 +100,22 @@ def sideband_intensities(beta, N):
 DB_FLOOR = -40.0
 
 
-def to_db(x, floor_db=DB_FLOOR):
+def to_decibels(intensity, floor_db=DB_FLOOR):
     """Convert a linear intensity (power ratio) to decibels: ``10*log10(x)``.
 
-    Values are clipped to ``floor_db`` before conversion so exact zeros (e.g.
-    the carrier at a Bessel null) map to a finite floor instead of ``-inf``.
+    Intensities here are relative to unit optical power, so 0 dB is the
+    reference and, because power is conserved (``sum_n |J_n(beta)|^2 == 1``),
+    no single line can exceed it. That makes 0 dB a physically meaningful
+    ceiling for both figures.
+
+    The input is clipped to the linear equivalent of ``floor_db`` *before* the
+    logarithm, so exact zeros -- the Bessel nulls, and the gaps between peaks
+    when noise is switched off -- yield the floor rather than ``-inf``, with no
+    intermediate infinities to suppress.
 
     Parameters
     ----------
-    x : float or numpy.ndarray
+    intensity : float or numpy.ndarray
         Linear intensity value(s), expected in ``[0, 1]``.
     floor_db : float, optional
         Lowest dB value returned, corresponding to the clipping floor.
@@ -116,11 +123,13 @@ def to_db(x, floor_db=DB_FLOOR):
 
     Returns
     -------
-    float or numpy.ndarray
-        ``x`` expressed in decibels, floored at ``floor_db``.
+    numpy.float64 or numpy.ndarray
+        ``intensity`` expressed in decibels, floored at ``floor_db``. Scalar
+        input gives a scalar back, so callers can use it directly as a
+        coordinate.
     """
-    floor_lin = 10 ** (floor_db / 10)
-    return 10 * np.log10(np.clip(x, floor_lin, None))
+    floor_linear = 10 ** (floor_db / 10)
+    return 10 * np.log10(np.clip(intensity, floor_linear, None))
 
 
 def captured_power(Jn2):
