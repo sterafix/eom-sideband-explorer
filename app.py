@@ -24,6 +24,10 @@ from physics import (color_for_n, sideband_intensities, intensity_vs_beta,
 
 NMAX = 6        # max selectable sideband orders to display
 
+# Share of the optical power the displayed orders must hold for the spectrum to
+# count as essentially complete; below it the truncation notice takes over.
+POWER_COMPLETE = 0.98
+
 # Shared y-limits for both figures. The two panels show the same intensities
 # (|J_n(beta)|^2), so their axes must span the same range for the dashed
 # helper lines to align visually across panels. The headroom above 1.0 leaves
@@ -343,8 +347,37 @@ def render_sidebar():
     return beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale
 
 
-def render_metrics(Jn2):
-    """Show the captured-power metric and a spectral-truncation warning if needed."""
+def truncation_message(cap, N):
+    """Return the spectral-truncation warning for a captured-power fraction.
+
+    The advice to display more orders is appended only while the slider has
+    room left: at ``N == NMAX`` there is nothing to increase, so the message
+    states the shortfall and stops rather than pointing at a setting that does
+    not exist.
+
+    Parameters
+    ----------
+    cap : float
+        Fraction of the optical power held by the displayed orders, from
+        :func:`physics.captured_power`.
+    N : int
+        Highest displayed sideband order, i.e. the current slider position.
+
+    Returns
+    -------
+    str
+        The warning body, as Markdown.
+    """
+    message = (f"**Spectral truncation:** {(1 - cap) * 100:.0f}% of the optical "
+               f"power falls outside the displayed orders.")
+    if N < NMAX:
+        message += (" Increase the number of displayed sideband orders to view "
+                    "the entire relevant spectrum.")
+    return message
+
+
+def render_metrics(Jn2, N):
+    """Show the captured-power metric and how complete the displayed spectrum is."""
     with st.container(border=True):
         col_left, col_right = st.columns([1, 2])
         with col_left:
@@ -353,13 +386,12 @@ def render_metrics(Jn2):
                       help="Fraction of the total optical power contained in the "
                            "displayed sideband orders.")
         with col_right:
-            if cap < 0.98:
-                st.warning(f"**Spectral truncation:** {(1-cap)*100:.0f}% of the optical "
-                           f"power falls outside the displayed orders. Increase the number "
-                           f"of displayed sidebands to account for the full spectrum.")
+            if cap < POWER_COMPLETE:
+                st.warning(truncation_message(cap, N), icon=":material/warning:")
             else:
-                st.caption("The displayed orders account for essentially the full "
-                           "optical power.")
+                st.success("**Spectrum essentially complete:** the displayed sideband "
+                           "orders account for the full optical power.",
+                           icon=":material/check_circle:")
 
 
 def render_intensity_table(Jn2, f0, N):
@@ -502,7 +534,7 @@ def main():
     st.caption("Phase-modulation sideband spectrum and its Bessel-function "
                "decomposition · line intensity $= J_n(\\beta)^2$ (Jacobi-Anger expansion)")
 
-    render_metrics(Jn2)
+    render_metrics(Jn2, N)
 
     with st.container(border=True):
         st.pyplot(fig, use_container_width=True, bbox_inches=None)

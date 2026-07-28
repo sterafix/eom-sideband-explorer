@@ -6,6 +6,9 @@ the dashed guide line drawn at a peak in Fig. 1 lands exactly on that order's
 marker in Fig. 2. The linear/dB toggle is the thing most able to break it, so
 it is exercised on both settings.
 
+The spectral-truncation message is checked here too, since its advice must
+never point at a setting the sidebar cannot reach.
+
 Rendering uses the non-interactive Agg backend, so the suite still needs no
 display or browser.
 """
@@ -17,8 +20,8 @@ import matplotlib.pyplot as plt          # noqa: E402
 import numpy as np                       # noqa: E402
 import pytest                            # noqa: E402
 
-from app import (PRESETS, YLIM, YLIM_DB, apply_plot_style,  # noqa: E402
-                 build_figure, theme_ink)
+from app import (NMAX, PRESETS, YLIM, YLIM_DB, apply_plot_style,  # noqa: E402
+                 build_figure, theme_ink, truncation_message)
 from physics import sideband_intensities  # noqa: E402
 
 # Every preset operating point, on both y-scales.
@@ -76,3 +79,15 @@ def test_nothing_drawn_is_infinite(beta, N, db_scale):
         for line in ax.get_lines():
             assert np.all(np.isfinite(np.atleast_1d(line.get_ydata())))
     plt.close(fig)
+
+
+@pytest.mark.parametrize("N", range(1, NMAX + 1))
+def test_truncation_message_only_advises_while_the_slider_has_room(N):
+    """The "display more orders" advice must disappear once the slider is maxed.
+
+    Below the maximum it has to be present, since it is the whole reason the
+    warning is worth reading.
+    """
+    message = truncation_message(0.75, N)
+    assert message.startswith("**Spectral truncation:** 25% of the optical power")
+    assert ("Increase the number of displayed sideband orders" in message) == (N < NMAX)
