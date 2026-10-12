@@ -23,7 +23,7 @@ the optical spectrum and the underlying Bessel functions update side by side.
   in the lab to measure a modulator's half-wave voltage *Vπ*.
 - **Linear / dB y-axis toggle** (under Display options) that switches both
   figures together, keeping their guide lines aligned, so the weaker sideband
-  orders are placed at their true height instead of collapsing onto zero.
+  orders become visible instead of collapsing onto zero.
 - **Captured-power readout** that warns how much of the optical power falls
   outside the displayed orders when they miss part of the spectrum.
 - **Exact intensity table** of *Jₙ(β)²* per sideband for each order.

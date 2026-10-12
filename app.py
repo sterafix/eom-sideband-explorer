@@ -246,7 +246,7 @@ def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, db_sc
 
     ax.set_xlim(-span, span)
     ax.set_ylim(*_ylim(db_scale))
-    ax.set_xlabel('Optical frequency detuning [MHz]', fontweight='bold')
+    ax.set_xlabel('Frequency offset from carrier [MHz]', fontweight='bold')
     ax.set_ylabel('Relative intensity [dB]' if db_scale else 'Relative intensity',
                   fontweight='bold')
     ax.set_title('Fig. 1: Optical spectrum', fontweight='bold', color=ink["text"], pad=12)
@@ -362,20 +362,30 @@ def render_sidebar():
     # Slider and exact-value box share one row, so they read as a single control.
     col_slider, col_box = st.sidebar.columns([2.2, 1], vertical_alignment="bottom")
     beta = col_slider.slider("Modulation depth  β [rad]", 0.0, 10.0, step=0.005,
-                             key="beta", format="%.3f", on_change=_beta_from_slider)
+                             key="beta", format="%.3f", on_change=_beta_from_slider,
+                             help="Peak phase shift the EOM gives the light, in radians. "
+                                  "A stronger RF drive gives a larger β. Small β puts "
+                                  "most power in the carrier; large β spreads it over "
+                                  "many sidebands.")
     col_box.number_input("Exact β [rad]", 0.0, 10.0, step=0.005, key="beta_input",
                          format="%.3f", on_change=_beta_from_input,
                          label_visibility="collapsed")
     f0 = st.sidebar.slider("Modulation frequency  f₀ [MHz]", 50.0, 3000.0, 1000.0, 5.0,
-                           format="%.0f")
+                           format="%.0f",
+                           help="Frequency of the RF signal driving the EOM. It sets "
+                                "the spacing between neighbouring lines, but not "
+                                "their heights.")
     N = st.sidebar.slider(
         "Displayed sideband orders", 1, NMAX, step=1, key="N",
         help="How many sideband orders are drawn on each side of the carrier. "
-             "All orders exist physically; this only sets how many are shown.")
+             "Order n sits at n·f₀ from the carrier. All orders exist "
+             "physically; this only sets how many are shown.")
 
     st.sidebar.pills("Presets", list(PRESETS), key="preset", on_change=_apply_preset,
-                     help="Common operating points. The highlight follows β: it "
-                          "clears when the sliders leave the preset value.")
+                     help="Common operating points. At the carrier null the carrier "
+                          "vanishes completely, which is used to calibrate EOMs "
+                          "(see Physics & model details). The highlight clears "
+                          "when β leaves the preset value.")
 
     with st.sidebar.expander("Display options"):
         scale_choice = st.radio(
@@ -383,10 +393,14 @@ def render_sidebar():
             help="dB (10·log₁₀, referenced to the unmodulated carrier) makes the "
                  "weak higher-order sidebands visible, the way a spectrum analyzer "
                  "shows them. Applies to both figures.")
-        width_frac = st.slider("Peak width", 0.003, 0.040, 0.012, 0.001, format="%.3f")
-        noise = st.slider("Noise level", 0.0, 0.030, 0.004, 0.001, format="%.3f")
+        width_frac = st.slider("Peak width", 0.003, 0.040, 0.012, 0.001, format="%.3f",
+                               help="Cosmetic only. The ideal lines are infinitely "
+                                    "narrow; a width just makes them visible.")
+        noise = st.slider("Noise level", 0.0, 0.030, 0.004, 0.001, format="%.3f",
+                          help="Cosmetic only. Adds a fake detector noise floor to "
+                               "Fig. 1, as on a real measurement.")
         color_peaks = st.checkbox("Color-code peaks", True)
-        fixed_xaxis = st.checkbox("Fix β-axis to 0–10", False)
+        fixed_xaxis = st.checkbox("Fix β-axis to 0 to 10", False)
     db_scale = scale_choice == "dB"
 
     return beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale
@@ -428,8 +442,8 @@ def render_metrics(Jn2, N):
         with col_left:
             cap = captured_power(Jn2)
             st.metric("Captured optical power", f"{cap*100:.1f} %",
-                      help="Fraction of the total optical power contained in the "
-                           "displayed sideband orders.")
+                      help="Share of the total optical power in the lines shown. "
+                           "The rest sits in higher orders that are not drawn.")
         with col_right:
             # Only speak up when something needs doing; a complete spectrum
             # is already evident from the metric itself.
@@ -444,87 +458,96 @@ def render_intensity_table(Jn2, f0, N):
         orders = list(range(0, N + 1))
         table = {
             "Order": ["0 (carrier)" if n == 0 else f"±{n}" for n in orders],
-            "Detuning [MHz]": ["0" if n == 0 else f"±{n * f0:.0f}" for n in orders],
-            "Jₙ(β)² per sideband": [f"{Jn2[n]:.4f}" for n in orders],
+            "Offset from carrier [MHz]": ["0" if n == 0 else f"±{n * f0:.0f}" for n in orders],
+            "Power fraction Jₙ(β)²": [f"{Jn2[n]:.4f}" for n in orders],
         }
         col_t, _ = st.columns([3, 2])
         with col_t:
             st.dataframe(table, hide_index=True, width="stretch")
-            st.caption("Intensity of a single sideband (or the carrier) as a fraction "
-                       "of the input power. The +n and -n sidebands are equally strong.")
+            st.caption("Power in one line as a fraction of the laser power going in "
+                       "(1 = all of it). Values are per sideband: the +n and -n "
+                       "sidebands are equally strong, so the pair holds twice this.")
 
 
 def render_physics_details():
     """Render the expandable 'Physics & model details' write-up."""
     with st.expander("Physics & model details"):
         st.markdown(
-            "This tool models pure sinusoidal **phase modulation** of a "
-            "monochromatic laser, the regime of an ideal electro-optic phase "
-            "modulator. The modulator imprints a time-varying phase "
-            "on the optical carrier:")
+            "**How an EOM works.** An EOM is a crystal whose refractive index changes "
+            "with the voltage across it (the Pockels effect). An RF voltage at "
+            "frequency $f_0$ therefore delays the light a little more, then a little "
+            "less, in step with the RF: it modulates the optical **phase**. This tool "
+            "models that sinusoidal phase modulation of a single-frequency laser, for "
+            "an ideal modulator:")
         st.latex(r"E(t)=E_0\,e^{\,i[\omega_c t+\beta\sin(\omega_m t)]}")
         st.markdown(
-            "Expanding with the **Jacobi-Anger identity** decomposes this into the "
-            "carrier plus an infinite, discrete set of sidebands spaced by the "
-            "modulation frequency $\\omega_m$:")
+            r"Here $\omega_c$ is the laser (carrier) angular frequency, $\omega_m = 2\pi f_0$ "
+            r"the modulation frequency, and $\beta$ the modulation depth, the peak "
+            r"phase shift in radians. The **Jacobi-Anger identity** rewrites this "
+            r"wiggling phase as a sum of steady laser lines, the carrier plus an "
+            r"infinite set of sidebands spaced by $f_0$:")
         st.latex(r"E(t)=E_0\sum_{n=-\infty}^{\infty} J_n(\beta)\,e^{\,i(\omega_c+n\omega_m)t},")
         st.markdown(
-            r"where $J_n(\beta)$ is the Bessel function (of the first kind). The line at detuning $n f_0$ has amplitude $J_n(\beta)$ and therefore "
-            r"intensity $|J_n(\beta)|^2$. Two consequences shape the figures:")
+            r"where $J_n$ is the Bessel function of the first kind of order $n$. The "
+            r"line $n f_0$ away from the carrier has amplitude $J_n(\beta)$ and "
+            r"therefore a power fraction $|J_n(\beta)|^2$. Two consequences shape the "
+            r"figures:")
         st.markdown(
-            r"- **Symmetry.** Since $J_{-n}(\beta)=(-1)^n J_n(\beta)$, the power "
-            r"spectrum is symmetric about the carrier: the $\pm n$ orders have equal "
-            r"intensity." "\n"
-            r"- **Energy conservation.** $\sum_{n} |J_n(\beta)|^2 = 1$, so phase "
-            r"modulation only redistributes power between carrier and sidebands. The "
-            r"*Captured optical power* readout is the partial sum of $|J_n(\beta)|^2$ "
-            r"over the displayed orders.")
+            r"- **Symmetry.** Since $J_{-n}(\beta)=(-1)^n J_n(\beta)$, the $+n$ and "
+            r"$-n$ sidebands are equally strong." "\n"
+            r"- **Energy conservation.** $\sum_{n} |J_n(\beta)|^2 = 1$: phase "
+            r"modulation adds no power, it only moves it from the carrier into the "
+            r"sidebands. The *Captured optical power* readout adds up the lines shown.")
+        st.markdown("**Useful operating points**")
         st.markdown(
-            r"The carrier first vanishes at $\beta\approx 2.4048$, the first zero of "
-            r"$J_0$. This carrier-null point is a standard laboratory reference for "
-            r"measuring $V_\pi$: at the null, $\beta = 2.4048$ is known exactly, so "
-            r"the half-wave voltage follows directly from the RF drive level,")
+            r"- **Small $\beta$** (below about 0.5): each first-order sideband holds "
+            r"about $\beta^2/4$ of the power, and higher orders are negligible. Typical "
+            r"for laser locking and FM spectroscopy." "\n"
+            r"- **$\beta \approx 1.08$** maximizes $J_0 J_1$, the carrier-sideband beat "
+            r"that gives the strongest Pound-Drever-Hall error signal." "\n"
+            r"- **$\beta \approx 1.84$** puts the most power into each first-order "
+            r"sideband (about 34 %), for example to make a repump frequency in laser "
+            r"cooling." "\n"
+            r"- **$\beta \approx 2.405$** (first zero of $J_0$) removes the carrier "
+            r"completely: the *carrier null*.")
+        st.markdown(
+            r"**From voltage to $\beta$.** On real hardware $\beta=\pi V_\text{peak}/V_\pi$, "
+            r"where $V_\text{peak}$ is the RF voltage amplitude (half the peak-to-peak "
+            r"value) and $V_\pi$ is the modulator's half-wave voltage, which depends on "
+            r"the device, the wavelength and the RF frequency. The carrier null gives a "
+            r"simple way to measure it: raise the RF drive until the carrier "
+            r"disappears; there $\beta = 2.4048$, so")
         st.latex(r"V_\pi = \frac{\pi\,V_\text{peak}}{2.4048}.")
         st.markdown(
-            r"This in turn allows the modulation depth to be calculated approximately for any "
-            r"drive voltage, provided the temperature, wavelength, and drive frequency remain close to the calibration conditions and we "
-            r"ignore effects like piezoelectric resonances.")
+            r"With $V_\pi$ known, $\beta$ can be estimated for any drive voltage, as long "
+            r"as wavelength, RF frequency and temperature stay close to the calibration "
+            r"(effects such as piezoelectric resonances in the crystal can still spoil "
+            r"this). The simulation itself takes $\beta$ directly and needs no $V_\pi$.")
         st.markdown("**What the figures show**")
         st.markdown(
-            r"- **Fig. 1** plots each order at $n f_0$ with height $|J_n(\beta)|^2$, "
-            r"annotated with its order number. The ideal lines are mathematically "
-            r"sharp; for visibility they are drawn as narrow Gaussian peaks on a small "
-            r"synthetic noise floor (both adjustable under Display options). The dashed "
-            r"guide line marks the exact $|J_n(\beta)|^2$ value, so the peak can sit a "
-            r"touch above it once noise is added." "\n"
-            r"- **Fig. 2** plots $|J_n(\beta)|^2$ versus modulation depth. The marker "
-            r"at your chosen $\beta$ shows that every peak height in Fig. 1 is a slice "
-            r"through these Bessel curves at that $\beta$." "\n"
-            r"- **Y-axis scale.** The *dB* setting plots $10\log_{10}|J_n(\beta)|^2$ on "
-            r"both figures, referenced to unit power ($0$ dB, the whole beam in the "
-            r"carrier before modulation). Sideband intensity falls off steeply with "
-            r"order, so on a linear axis the higher orders sit indistinguishably on "
-            r"zero; in dB each is placed at its true height, which is what makes the "
-            r"weaker orders and the Fig. 2 curves readable. In Fig. 1 an order that "
-            r"falls below the synthetic noise floor stays buried in it, just as it "
-            r"would be on a real analyzer. Values are floored at "
-            rf"${DB_FLOOR:.0f}$ dB so the Bessel nulls, where the intensity is exactly "
-            r"zero, stay on scale.")
-        st.markdown(
-            r"You set $\beta$ (the peak phase deviation), the line spacing $f_0$, and "
-            r"how many orders to display. On real hardware $\beta$ follows from the RF "
-            r"drive via $\beta=\pi V_\text{peak}/V_\pi$, where $V_\pi$ is the device- "
-            r"and wavelength-dependent half-wave voltage (not used in this idealized "
-            r"simulation).")
+            r"- **Fig. 1** is the optical spectrum: each line at $n f_0$ from the "
+            r"carrier, with height $|J_n(\beta)|^2$ and its order number on top. Real "
+            r"lines are infinitely narrow, so they are drawn as narrow peaks on a small "
+            r"fake noise floor (both adjustable under Display options). The dashed line "
+            r"marks the exact value; with noise added, a peak can poke slightly above it." "\n"
+            r"- **Fig. 2** shows how each line's power changes with $\beta$. The dots at "
+            r"your chosen $\beta$ have the same heights as the peaks in Fig. 1, linked by "
+            r"the dashed lines." "\n"
+            r"- **Y-axis scale.** *dB* plots $10\log_{10}|J_n(\beta)|^2$ on both "
+            r"figures, where 0 dB is the full laser power. On the linear axis the higher "
+            r"orders are too small to see; the logarithmic dB axis spreads small values "
+            r"apart so they become visible. In Fig. 1 a line weaker than the noise floor "
+            r"stays hidden in it, just as on a real measurement. Values are cut off at "
+            rf"${DB_FLOOR:.0f}$ dB so the zeros of the Bessel functions stay on scale.")
         st.markdown("**Beyond the ideal case: residual amplitude modulation**")
         st.markdown(
-            r"Real modulators never achieve *pure* phase modulation. Small imperfections "
-            r"(e.g., facet reflections and polarization misalignment) add a little "
-            r"**residual amplitude modulation (RAM)** on top of the phase modulation, "
-            r"breaking the strict carrier-sideband quadrature assumed above. In precision "
-            r"applications such as Pound-Drever-Hall laser stabilization, RAM shows up as a "
-            r"small, temperature-dependent offset in the error signal that can drift the "
-            r"lock point over time. This is not captured by the idealized model here."
+            r"Real modulators never produce *pure* phase modulation. Imperfections such "
+            r"as reflections at the crystal faces or light polarized not exactly along "
+            r"the crystal axis add a small **residual amplitude modulation (RAM)**: the "
+            r"laser power itself wobbles at $f_0$, which pure phase modulation never "
+            r"does. In laser locking schemes such as Pound-Drever-Hall, RAM appears as "
+            r"a small, temperature-dependent offset in the error signal that slowly "
+            r"shifts the lock point. The ideal model here does not include it."
         )
         st.markdown(
             "**References and further reading**\n"
@@ -534,10 +557,12 @@ def render_physics_details():
             "- [Pockels effect](https://en.wikipedia.org/wiki/Pockels_effect)\n"
             "- [Phase modulation](https://en.wikipedia.org/wiki/Phase_modulation)\n"
             "- [Pound-Drever-Hall technique](https://en.wikipedia.org/wiki/Pound%E2%80%93Drever%E2%80%93Hall_technique)\n"
+            "- E. D. Black, [An introduction to Pound-Drever-Hall laser frequency "
+            "stabilization](https://doi.org/10.1119/1.1286663), Am. J. Phys. 69, 79 (2001)\n"
             "- B. E. A. Saleh and M. C. Teich, *Fundamentals of Photonics* (electro-optics chapter)")
         st.caption(
             "Idealizations: pure phase modulation (no residual amplitude modulation), "
-            "a single RF tone, and no loss.")
+            "a single-frequency laser, a single RF tone, and no loss.")
 
 
 def init_session_state():
@@ -569,8 +594,15 @@ def main():
                        fixed_xaxis=fixed_xaxis, db_scale=db_scale, mode=mode)
 
     st.header("EOM Sideband Explorer")
-    st.caption("Phase-modulation sideband spectrum and its Bessel-function "
-               "decomposition · line intensity $= J_n(\\beta)^2$ (Jacobi-Anger expansion)")
+    st.markdown(
+        "An **electro-optic modulator (EOM)** shifts the phase of a laser beam back "
+        "and forth, driven by an RF signal of frequency $f_0$. This creates new "
+        "laser frequencies, called **sidebands**, spaced by $f_0$ above and below "
+        "the original laser line (the **carrier**). The **modulation depth** "
+        "$\\beta$ sets how much power moves from the carrier into the sidebands.")
+    st.caption("Try it: drag the β slider in the sidebar and watch the carrier "
+               "(order 0) shrink as the sidebands (±1, ±2, ...) grow. "
+               "On a phone, open the sidebar with the arrow at the top left.")
 
     render_metrics(Jn2, N)
 
