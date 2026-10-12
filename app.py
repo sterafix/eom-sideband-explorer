@@ -476,8 +476,9 @@ def render_physics_details():
             "**How an EOM works.** An EOM contains a crystal whose refractive index "
             "changes with the applied voltage (the Pockels effect). Depending on the "
             "crystal and the polarization of the light, this changes the light's "
-            "phase or its polarization. In a phase modulator, the phase shift follows "
-            "the drive voltage, whatever its shape. This tool models an ideal phase "
+            "phase or its polarization. In a phase modulator, the phase shift is "
+            "proportional to the voltage, so any drive waveform (a sine, a ramp, a "
+            "pulse) is copied onto the phase. This tool models an ideal phase "
             "modulator driven by a sinusoidal RF voltage at $f_0$, which makes the "
             "phase of a single-frequency laser oscillate:")
         st.latex(r"E(t)=E_0\,e^{\,i[\omega_c t+\beta\sin(\omega_m t)]}")
