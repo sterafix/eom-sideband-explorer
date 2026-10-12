@@ -26,8 +26,7 @@ the optical spectrum and the underlying Bessel functions update side by side.
   true height instead of collapsing onto zero.
 - **Captured-power readout** that warns how much of the optical power falls
   outside the displayed orders when they miss part of the spectrum.
-- **Power share table** giving each order's share of the optical power (±*n*
-  counted together).
+- **Exact intensity table** of *Jₙ(β)²* per sideband for each order.
 - **Colourblind-safe, theme-aware figures** that follow Streamlit's light/dark
   mode.
 - A **Physics & model details** panel explaining the model, its assumptions, and

@@ -389,21 +389,20 @@ def render_metrics(Jn2, N):
 
 
 def render_intensity_table(Jn2, f0, N):
-    """Show each displayed order's share of the optical power as a table."""
+    """Show the exact intensity of each displayed sideband as a table."""
     with st.container(border=True):
         st.subheader("Sideband intensities")
         orders = list(range(0, N + 1))
         table = {
             "Order": ["0 (carrier)" if n == 0 else f"±{n}" for n in orders],
             "Detuning [MHz]": ["0" if n == 0 else f"±{n * f0:.0f}" for n in orders],
-            "Power share": [
-                f"{Jn2[n] * (1 if n == 0 else 2) * 100:.2f} %" for n in orders],
+            "Jₙ(β)² per sideband": [f"{Jn2[n]:.4f}" for n in orders],
         }
         col_t, _ = st.columns([3, 2])
         with col_t:
             st.dataframe(table, hide_index=True, use_container_width=True)
-            st.caption("The ±n rows count both sidebands together, so the shares add "
-                       "up to the captured optical power shown above.")
+            st.caption("Intensity of a single sideband (or the carrier) as a fraction "
+                       "of the input power. The +n and -n sidebands are equally strong.")
 
 
 def render_physics_details():
