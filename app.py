@@ -17,9 +17,10 @@ Run locally with ``streamlit run app.py``.
 
 import io
 
+import matplotlib
 import numpy as np
-import matplotlib.pyplot as plt
 import streamlit as st
+from matplotlib.figure import Figure
 
 from physics import (color_for_n, sideband_intensities, intensity_vs_beta,
                      captured_power, to_decibels, DB_FLOOR)
@@ -105,14 +106,29 @@ def _apply_preset():
 # previous theme until the next interaction (streamlit/streamlit#11920). With
 # its own background the figure then still reads as a light or dark panel,
 # instead of light ink on a light page or dark ink on a dark one.
+#
+# Streamlit serves every visitor from threads of one process, and pyplot and
+# matplotlib's rcParams are global to that process. So the figure is built
+# without pyplot, and every theme colour is passed to the artists directly:
+# concurrent visitors (one in light mode, one in dark) can then never pick up
+# each other's colours. Only settings that are the same for everyone live in
+# rcParams.
 # ---------------------------------------------------------------------------
-def theme_ink(is_dark):
+matplotlib.rcParams.update({
+    "axes.linewidth": 1.0,
+    "font.size": 11,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Liberation Sans", "Arial", "DejaVu Sans"],
+})
+
+
+def theme_ink(mode):
     """Return the theme-dependent ink colours for the matplotlib figure.
 
     Parameters
     ----------
-    is_dark : bool
-        Whether the active Streamlit theme is dark.
+    mode : {"light", "dark"}
+        The active Streamlit theme.
 
     Returns
     -------
@@ -122,6 +138,7 @@ def theme_ink(is_dark):
         (titles, matches the Streamlit ``textColor``), ``hline`` (dashed helper
         lines), and ``box_fc`` / ``box_ec`` (annotation-box face and edge).
     """
+    is_dark = mode == "dark"
     return {
         "bg":     '#0e1117' if is_dark else '#ffffff',
         "grey":   '0.65' if is_dark else '0.45',
@@ -132,16 +149,13 @@ def theme_ink(is_dark):
     }
 
 
-def apply_plot_style(ink):
-    """Apply shared matplotlib rcParams so both axes match the Streamlit theme."""
-    plt.rcParams.update({
-        "axes.edgecolor": ink["grey"], "axes.labelcolor": ink["grey"],
-        "xtick.color": ink["grey"], "ytick.color": ink["grey"],
-        "text.color": ink["text"],
-        "axes.linewidth": 1.0, "font.size": 11,
-        "font.family": "sans-serif",
-        "font.sans-serif": ["Liberation Sans", "Arial", "DejaVu Sans"],
-    })
+def _color_axes(ax, ink):
+    """Give the frame, ticks and axis labels of ``ax`` the theme's grey ink."""
+    for spine in ax.spines.values():
+        spine.set_edgecolor(ink["grey"])
+    ax.tick_params(colors=ink["grey"])
+    ax.xaxis.label.set_color(ink["grey"])
+    ax.yaxis.label.set_color(ink["grey"])
 
 
 # ---------------------------------------------------------------------------
@@ -233,7 +247,8 @@ def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, db_sc
     ax.set_xlim(-span, span)
     ax.set_ylim(*_ylim(db_scale))
     ax.set_xlabel('Optical frequency detuning [MHz]', fontweight='bold')
-    ax.set_ylabel('Intensity [dB]' if db_scale else 'Intensity [arb. units]', fontweight='bold')
+    ax.set_ylabel('Relative intensity [dB]' if db_scale else 'Relative intensity',
+                  fontweight='bold')
     ax.set_title('Fig. 1: Optical spectrum', fontweight='bold', color=ink["text"], pad=12)
     ax.text(0.04, 0.95,
             f"$f_0$ = {f0:.0f} MHz\n"
@@ -289,23 +304,33 @@ def draw_bessel_curves(ax, *, beta, N, Jn2, fixed_xaxis, db_scale, mode, ink):
     ax.yaxis.tick_right()
     ax.set_ylabel('Relative intensity [dB]' if db_scale else 'Relative intensity',
                   fontweight='bold')
-    ax.legend(title='Bessel functions', loc='upper right', frameon=False)
+    legend = ax.legend(title='Bessel functions', loc='upper right', frameon=False,
+                       labelcolor=ink["text"])
+    legend.get_title().set_color(ink["text"])
 
 
 def build_figure(*, beta, f0, N, Jn2, width_frac, noise, color_peaks,
-                 fixed_xaxis, db_scale, mode, ink):
-    """Build and return the two-panel matplotlib figure (spectrum + Bessel curves)."""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.5, 5.2), dpi=150)
+                 fixed_xaxis, db_scale, mode):
+    """Build and return the two-panel matplotlib figure (spectrum + Bessel curves).
+
+    ``mode`` (``"light"`` or ``"dark"``) selects the theme colours; the other
+    arguments are passed on to :func:`draw_spectrum` and
+    :func:`draw_bessel_curves`.
+    """
+    ink = theme_ink(mode)
+    fig = Figure(figsize=(12.5, 5.2))
+    ax1, ax2 = fig.subplots(1, 2)
     fig.subplots_adjust(wspace=0.18, top=0.86, bottom=0.13, left=0.07, right=0.93)
     fig.patch.set_facecolor(ink["bg"])
-    for ax in (ax1, ax2):
-        ax.set_facecolor('none')
 
     draw_spectrum(ax1, beta=beta, f0=f0, N=N, Jn2=Jn2, width_frac=width_frac,
                   noise=noise, color_peaks=color_peaks, db_scale=db_scale,
                   mode=mode, ink=ink)
     draw_bessel_curves(ax2, beta=beta, N=N, Jn2=Jn2, fixed_xaxis=fixed_xaxis,
                        db_scale=db_scale, mode=mode, ink=ink)
+    for ax in (ax1, ax2):
+        ax.set_facecolor('none')
+        _color_axes(ax, ink)
     return fig
 
 
@@ -313,10 +338,9 @@ def figure_png(fig):
     """Render ``fig`` to PNG bytes, uncropped, on its own background.
 
     The canvas is saved exactly as laid out by ``subplots_adjust`` instead of
-    being cropped to its content, at the 200 dpi ``st.pyplot`` used, with the
-    figure's own background colour (see :func:`theme_ink`). Saving it here,
-    rather than passing savefig options to ``st.pyplot`` (now deprecated),
-    keeps that control in our hands.
+    being cropped to its content, at 200 dpi, with the figure's own background
+    colour (see :func:`theme_ink`). Saving it here, rather than passing savefig
+    options to ``st.pyplot`` (now deprecated), keeps that control in our hands.
     """
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=200)
@@ -533,7 +557,6 @@ def main():
 
     # Resolve the active Streamlit theme so the matplotlib figure matches it.
     mode = "dark" if st.context.theme.type == "dark" else "light"
-    ink = theme_ink(mode == "dark")
 
     init_session_state()
     beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale = render_sidebar()
@@ -541,10 +564,9 @@ def main():
     # |J_n(beta)|^2 for n = 0..N, shared by both figures and the table.
     Jn2 = sideband_intensities(beta, N)
 
-    apply_plot_style(ink)
     fig = build_figure(beta=beta, f0=f0, N=N, Jn2=Jn2, width_frac=width_frac,
                        noise=noise, color_peaks=color_peaks,
-                       fixed_xaxis=fixed_xaxis, db_scale=db_scale, mode=mode, ink=ink)
+                       fixed_xaxis=fixed_xaxis, db_scale=db_scale, mode=mode)
 
     st.header("EOM Sideband Explorer")
     st.caption("Phase-modulation sideband spectrum and its Bessel-function "
@@ -554,7 +576,6 @@ def main():
 
     with st.container(border=True):
         st.image(figure_png(fig), width="stretch")
-    plt.close(fig)      # release the figure so reruns do not accumulate in memory
 
     render_intensity_table(Jn2, f0, N)
     render_physics_details()
