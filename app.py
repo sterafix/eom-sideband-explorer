@@ -473,12 +473,14 @@ def render_physics_details():
     """Render the expandable 'Physics & model details' write-up."""
     with st.expander("Physics & model details"):
         st.markdown(
-            "**How an EOM works.** An EOM is a crystal whose refractive index changes "
-            "with the voltage across it (the Pockels effect). An RF voltage at "
-            "frequency $f_0$ therefore delays the light a little more, then a little "
-            "less, in step with the RF: it modulates the optical **phase**. This tool "
-            "models that sinusoidal phase modulation of a single-frequency laser, for "
-            "an ideal modulator:")
+            "**How an EOM works.** An EOM contains a crystal whose refractive index "
+            "changes with the applied voltage (the Pockels effect). Depending on the "
+            "crystal and the polarization of the light, this changes the light's "
+            "phase or its polarization. In a phase modulator, the phase shift is "
+            "proportional to the voltage, so any drive waveform (a sine, a ramp, a "
+            "pulse) is copied onto the phase. This tool models an ideal phase "
+            "modulator driven by a sinusoidal RF voltage at $f_0$, which makes the "
+            "phase of a single-frequency laser oscillate:")
         st.latex(r"E(t)=E_0\,e^{\,i[\omega_c t+\beta\sin(\omega_m t)]}")
         st.markdown(
             r"Here $\omega_c$ is the laser (carrier) angular frequency, $\omega_m = 2\pi f_0$ "
@@ -595,11 +597,12 @@ def main():
 
     st.header("EOM Sideband Explorer")
     st.markdown(
-        "An **electro-optic modulator (EOM)** shifts the phase of a laser beam back "
-        "and forth, driven by an RF signal of frequency $f_0$. This creates new "
-        "laser frequencies, called **sidebands**, spaced by $f_0$ above and below "
-        "the original laser line (the **carrier**). The **modulation depth** "
-        "$\\beta$ sets how much power moves from the carrier into the sidebands.")
+        "This app simulates an **electro-optic phase modulator (EOM)** driven by a "
+        "sinusoidal RF signal of frequency $f_0$. It makes the phase of a laser beam "
+        "oscillate at $f_0$, which creates new laser frequencies, called "
+        "**sidebands**, spaced by $f_0$ above and below the original laser line "
+        "(the **carrier**). The **modulation depth** $\\beta$, the peak phase "
+        "shift, sets how much power moves from the carrier into the sidebands.")
     st.caption("Try it: drag the β slider in the sidebar and watch the carrier "
                "(order 0) shrink as the sidebands (±1, ±2, ...) grow. "
                "On a phone, open the sidebar with the arrow at the top left.")
