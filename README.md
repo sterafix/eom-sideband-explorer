@@ -57,8 +57,8 @@ browser.
 
 ## Project structure
 
-The code is split into three small files so the physics can be understood,
-reused, and tested independently of the user interface:
+The physics and the user interface live in separate modules, so the physics
+can be understood, reused, and tested independently of the user interface:
 
 | File                    | Responsibility                                                        |
 | ----------------------- | --------------------------------------------------------------------- |
@@ -126,9 +126,14 @@ including the carrier-null *Vπ* measurement and the idealizations of the model.
 ## Using and adapting this project
 
 This project is MIT-licensed (see [`LICENSE`](LICENSE)), so you are free to use,
-modify, and embed it, for example on
-your own website. If you build on it or embed it, an attribution link back to this
-repository is appreciated but not required.
+modify, and embed it, for example on your own website. If you build on it or
+embed it, an attribution link back to this repository is appreciated but not
+required.
+
+To host your own copy, fork the repository and deploy it on
+[Streamlit Community Cloud](https://streamlit.io/cloud) with `app.py` as the
+main file; it installs `requirements.txt` automatically. New physics belongs in
+`physics.py` (with a test in `test_physics.py`), new drawing code in `app.py`.
 
 ## License
 

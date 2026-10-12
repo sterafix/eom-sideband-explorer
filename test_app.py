@@ -9,23 +9,21 @@ it is exercised on both settings.
 The spectral-truncation message is checked here too, since its advice must
 never point at a setting the sidebar cannot reach.
 
-Rendering uses the non-interactive Agg backend, so the suite still needs no
-display or browser.
+The figures are built without pyplot and rendered off-screen, so the suite
+needs no display or browser.
 """
 
-import matplotlib
-matplotlib.use('Agg')
+import io
 
-import matplotlib.pyplot as plt          # noqa: E402
-import numpy as np                       # noqa: E402
-import pytest                            # noqa: E402
+import numpy as np
+import pytest
+from matplotlib.colors import to_rgba
+from matplotlib.text import Text
+from PIL import Image
 
-from app import (NMAX, PRESETS, YLIM, YLIM_DB, apply_plot_style,  # noqa: E402
-                 build_figure, figure_png, theme_ink, truncation_message)
-from matplotlib.colors import to_rgba                 # noqa: E402
-from PIL import Image                                 # noqa: E402
-import io                                             # noqa: E402
-from physics import sideband_intensities  # noqa: E402
+from app import (NMAX, PRESETS, YLIM, YLIM_DB, build_figure, figure_png,
+                 theme_ink, truncation_message)
+from physics import sideband_intensities
 
 # Every preset operating point, on both y-scales.
 CASES = [(beta, N, db) for beta, N in PRESETS.values() for db in (False, True)]
@@ -33,12 +31,10 @@ CASES = [(beta, N, db) for beta, N in PRESETS.values() for db in (False, True)]
 
 def _figure(beta, N, db_scale, mode='light'):
     """Build the two-panel figure for one operating point, y-scale and theme."""
-    ink = theme_ink(mode == 'dark')
-    apply_plot_style(ink)
     return build_figure(beta=beta, f0=1000.0, N=N,
                         Jn2=sideband_intensities(beta, N), width_frac=0.012,
                         noise=0.004, color_peaks=True, fixed_xaxis=False,
-                        db_scale=db_scale, mode=mode, ink=ink)
+                        db_scale=db_scale, mode=mode)
 
 
 def _luminance(color):
@@ -65,7 +61,6 @@ def test_both_panels_share_one_y_range(beta, N, db_scale):
     ax1, ax2 = fig.axes
     assert ax1.get_ylim() == ax2.get_ylim()
     assert ax1.get_ylim() == (YLIM_DB if db_scale else YLIM)
-    plt.close(fig)
 
 
 @pytest.mark.parametrize("beta,N,db_scale", CASES)
@@ -77,7 +72,6 @@ def test_guide_lines_land_on_the_bessel_markers(beta, N, db_scale):
     assert len(heights) == N + 1        # one per displayed order, carrier included
     assert len(markers) == N + 1
     assert heights == pytest.approx(markers)
-    plt.close(fig)
 
 
 @pytest.mark.parametrize("beta,N,db_scale", CASES)
@@ -87,7 +81,6 @@ def test_nothing_drawn_is_infinite(beta, N, db_scale):
     for ax in fig.axes:
         for line in ax.get_lines():
             assert np.all(np.isfinite(np.atleast_1d(line.get_ydata())))
-    plt.close(fig)
 
 
 @pytest.mark.parametrize("N", range(1, NMAX + 1))
@@ -112,10 +105,28 @@ def test_figure_carries_its_own_opaque_background(mode):
     """
     fig = _figure(1.0, 2, False, mode)
     png = Image.open(io.BytesIO(figure_png(fig))).convert("RGBA")
-    plt.close(fig)
     assert png.getextrema()[3] == (255, 255), "the figure has transparent pixels"
 
-    ink = theme_ink(mode == 'dark')
+    ink = theme_ink(mode)
     assert png.getpixel((5, 5))[:3] == tuple(round(255 * c) for c in to_rgba(ink["bg"])[:3])
     for role in ("text", "grey"):
         assert abs(_luminance(ink[role]) - _luminance(ink["bg"])) > 0.35, role
+
+
+def test_dark_figure_sets_every_colour_itself():
+    """No text or frame on a dark figure falls back to matplotlib's black ink.
+
+    Streamlit serves concurrent visitors from one process, so the figure must
+    not take its theme colours from the global rcParams: every artist gets its
+    colour passed in directly, which this checks on the dark theme.
+    """
+    fig = _figure(1.0, 2, False, 'dark')
+    figure_png(fig)                     # draw, so every tick label exists
+    bg = _luminance(theme_ink('dark')["bg"])
+    texts = [t for t in fig.findobj(Text) if t.get_text()]
+    spines = [s for ax in fig.axes for s in ax.spines.values()]
+    assert texts
+    for t in texts:
+        assert _luminance(t.get_color()) - bg > 0.35, t.get_text()
+    for spine in spines:
+        assert _luminance(spine.get_edgecolor()) - bg > 0.35
