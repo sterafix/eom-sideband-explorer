@@ -21,9 +21,9 @@ the optical spectrum and the underlying Bessel functions update side by side.
   number of sideband orders to display.
 - **Preset operating points**, including the *carrier null* at *β ≈ 2.4048* used
   in the lab to measure a modulator's half-wave voltage *Vπ*.
-- **Linear / dB y-axis toggle** (under Display options) that switches both figures together, keeping
-  their guide lines aligned, so the weaker sideband orders are placed at their
-  true height instead of collapsing onto zero.
+- **Linear / dB y-axis toggle** (under Display options) that switches both
+  figures together, keeping their guide lines aligned, so the weaker sideband
+  orders are placed at their true height instead of collapsing onto zero.
 - **Captured-power readout** that warns how much of the optical power falls
   outside the displayed orders when they miss part of the spectrum.
 - **Exact intensity table** of *Jₙ(β)²* per sideband for each order.
@@ -66,9 +66,10 @@ reused, and tested independently of the user interface:
 | `app.py`                | The Streamlit user interface — reads the controls, calls `physics.py`, and draws the figures. |
 | `test_physics.py`       | Unit tests that pin down the physical properties of the model (energy conservation, symmetry, the carrier null, …). |
 | `test_app.py`           | Tests that the two figures stay on one shared vertical scale, so the guide lines still connect them on either y-axis setting. |
+| `test_streamlit_app.py` | Smoke tests that run the whole app headlessly at every preset and fail on any error or stray warning Streamlit shows. |
 | `requirements.txt`      | Runtime dependencies — everything needed to *run* the app.            |
 | `requirements-dev.txt`  | Development dependencies — the runtime set plus tools like the test runner. |
-| `.streamlit/config.toml`| Streamlit theme settings.                                             |
+| `.streamlit/config.toml`| Streamlit theme settings (the accent colour for the light and dark variants). |
 | `.github/workflows/ci.yml` | Continuous-integration workflow (compiles the code and runs the tests on every push and pull request). |
 
 ### Why two requirements files?
@@ -92,9 +93,10 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-The tests cover the physics core (`physics.py`) and the figure invariants that
+The tests cover the physics core (`physics.py`), the figure invariants that
 keep the two panels aligned (`app.py`, rendered through matplotlib's Agg
-backend). They run in a couple of seconds and require no display or browser.
+backend), and a headless run of the whole app through Streamlit's
+`AppTest`. They run in about ten seconds and require no display or browser.
 
 ## The physics in brief
 
