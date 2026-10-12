@@ -312,11 +312,13 @@ def render_sidebar():
         ``(beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale)``.
     """
     st.sidebar.title("EOM parameters")
-    beta = st.sidebar.slider("Modulation depth  β [rad]", 0.0, 10.0, step=0.005,
+    # Slider and exact-value box share one row, so they read as a single control.
+    col_slider, col_box = st.sidebar.columns([2.2, 1], vertical_alignment="bottom")
+    beta = col_slider.slider("Modulation depth  β [rad]", 0.0, 10.0, step=0.005,
                              key="beta", format="%.3f", on_change=_beta_from_slider)
-    st.sidebar.number_input("Exact β [rad]", 0.0, 10.0, step=0.005, key="beta_input",
-                            format="%.3f", on_change=_beta_from_input,
-                            help="Type a precise modulation depth; the slider follows.")
+    col_box.number_input("Exact β [rad]", 0.0, 10.0, step=0.005, key="beta_input",
+                         format="%.3f", on_change=_beta_from_input,
+                         label_visibility="collapsed")
     f0 = st.sidebar.slider("Modulation frequency  f₀ [MHz]", 50.0, 3000.0, 1000.0, 5.0,
                            format="%.0f")
     N = st.sidebar.slider(
