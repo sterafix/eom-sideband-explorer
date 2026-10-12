@@ -15,6 +15,8 @@ The two figures shown side by side are:
 Run locally with ``streamlit run app.py``.
 """
 
+import io
+
 import numpy as np
 import matplotlib.pyplot as plt
 import streamlit as st
@@ -300,6 +302,20 @@ def build_figure(*, beta, f0, N, Jn2, width_frac, noise, color_peaks,
     return fig
 
 
+def figure_png(fig):
+    """Render ``fig`` to PNG bytes, uncropped and transparent.
+
+    The canvas is saved exactly as laid out by ``subplots_adjust`` instead of
+    being cropped to its content, at the 200 dpi ``st.pyplot`` used, and the
+    transparent figure patch carries through, so the chart sits on whichever
+    background the page uses. Saving it here, rather than passing savefig
+    options to ``st.pyplot`` (now deprecated), keeps that control in our hands.
+    """
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=200)
+    return buf.getvalue()
+
+
 # ---------------------------------------------------------------------------
 # UI building blocks
 # ---------------------------------------------------------------------------
@@ -408,7 +424,7 @@ def render_intensity_table(Jn2, f0, N):
         }
         col_t, _ = st.columns([3, 2])
         with col_t:
-            st.dataframe(table, hide_index=True, use_container_width=True)
+            st.dataframe(table, hide_index=True, width="stretch")
             st.caption("Intensity is given per spectral line; the power share combines the "
                        "+n and -n orders, so the shares sum to the captured optical power "
                        "shown above.")
@@ -537,7 +553,7 @@ def main():
     render_metrics(Jn2, N)
 
     with st.container(border=True):
-        st.pyplot(fig, use_container_width=True, bbox_inches=None)
+        st.image(figure_png(fig), width="stretch")
     plt.close(fig)      # release the figure so reruns do not accumulate in memory
 
     render_intensity_table(Jn2, f0, N)

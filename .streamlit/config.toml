@@ -1,5 +1,8 @@
-[theme]
+# Accent colour matching the order-1 blue of the figures. Only the accent is
+# set, once per variant, so Streamlit keeps following the viewer's light/dark
+# preference; the figures read the active theme and switch with it.
+[theme.light]
 primaryColor = "#1f77b4"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f0f2f6"
-textColor = "#262730"
+
+[theme.dark]
+primaryColor = "#3987e5"
