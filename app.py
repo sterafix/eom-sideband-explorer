@@ -25,7 +25,7 @@ from physics import (color_for_n, sideband_intensities, intensity_vs_beta,
 NMAX = 6        # max selectable sideband orders to display
 
 # Share of the optical power the displayed orders must hold for the spectrum to
-# count as essentially complete; below it the truncation notice takes over.
+# count as essentially complete; below it the truncation warning is shown.
 POWER_COMPLETE = 0.98
 
 # Shared y-limits for both figures. The two panels show the same intensities
@@ -328,21 +328,17 @@ def render_sidebar():
                      help="Common operating points. The highlight follows β: it "
                           "clears when the sliders leave the preset value.")
 
-    st.sidebar.markdown("---")
-    scale_choice = st.sidebar.radio(
-        "Y-axis scale", ["Linear", "dB"], horizontal=True, key="scale_choice",
-        help="Linear shows intensity on 0-1; dB (10·log₁₀, referenced to the "
-             "unmodulated carrier) compresses the huge range between the carrier "
-             "and the higher-order sidebands, the way a spectrum analyzer "
-             "displays a spectrum. Applies to both figures, so the dashed guide "
-             "lines stay aligned.")
-    db_scale = scale_choice == "dB"
-
     with st.sidebar.expander("Display options"):
+        scale_choice = st.radio(
+            "Y-axis scale", ["Linear", "dB"], horizontal=True, key="scale_choice",
+            help="dB (10·log₁₀, referenced to the unmodulated carrier) makes the "
+                 "weak higher-order sidebands visible, the way a spectrum analyzer "
+                 "shows them. Applies to both figures.")
         width_frac = st.slider("Peak width", 0.003, 0.040, 0.012, 0.001, format="%.3f")
         noise = st.slider("Noise level", 0.0, 0.030, 0.004, 0.001, format="%.3f")
         color_peaks = st.checkbox("Color-code peaks", True)
         fixed_xaxis = st.checkbox("Fix β-axis to 0–10", False)
+    db_scale = scale_choice == "dB"
 
     return beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale
 
@@ -377,7 +373,7 @@ def truncation_message(cap, N):
 
 
 def render_metrics(Jn2, N):
-    """Show the captured-power metric and how complete the displayed spectrum is."""
+    """Show the captured-power metric, plus a warning if the spectrum is truncated."""
     with st.container(border=True):
         col_left, col_right = st.columns([1, 2])
         with col_left:
@@ -386,32 +382,28 @@ def render_metrics(Jn2, N):
                       help="Fraction of the total optical power contained in the "
                            "displayed sideband orders.")
         with col_right:
+            # Only speak up when something needs doing; a complete spectrum
+            # is already evident from the metric itself.
             if cap < POWER_COMPLETE:
                 st.warning(truncation_message(cap, N), icon=":material/warning:")
-            else:
-                st.success("**Spectrum essentially complete:** the displayed sideband "
-                           "orders account for the full optical power.",
-                           icon=":material/check_circle:")
 
 
 def render_intensity_table(Jn2, f0, N):
-    """Show the exact per-line intensities and combined power shares as a table."""
+    """Show each displayed order's share of the optical power as a table."""
     with st.container(border=True):
         st.subheader("Sideband intensities")
         orders = list(range(0, N + 1))
         table = {
             "Order": ["0 (carrier)" if n == 0 else f"±{n}" for n in orders],
             "Detuning [MHz]": ["0" if n == 0 else f"±{n * f0:.0f}" for n in orders],
-            "Jₙ(β)² per line": [f"{Jn2[n]:.4f}" for n in orders],
-            "Power share (±n)": [
+            "Power share": [
                 f"{Jn2[n] * (1 if n == 0 else 2) * 100:.2f} %" for n in orders],
         }
         col_t, _ = st.columns([3, 2])
         with col_t:
             st.dataframe(table, hide_index=True, use_container_width=True)
-            st.caption("Intensity is given per spectral line; the power share combines the "
-                       "+n and -n orders, so the shares sum to the captured optical power "
-                       "shown above.")
+            st.caption("The ±n rows count both sidebands together, so the shares add "
+                       "up to the captured optical power shown above.")
 
 
 def render_physics_details():

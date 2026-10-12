@@ -21,14 +21,13 @@ the optical spectrum and the underlying Bessel functions update side by side.
   number of sideband orders to display.
 - **Preset operating points**, including the *carrier null* at *β ≈ 2.4048* used
   in the lab to measure a modulator's half-wave voltage *Vπ*.
-- **Linear / dB y-axis toggle** that switches both figures together, keeping
+- **Linear / dB y-axis toggle** (under Display options) that switches both figures together, keeping
   their guide lines aligned, so the weaker sideband orders are placed at their
   true height instead of collapsing onto zero.
-- **Captured-power readout** that confirms when the displayed orders hold
-  essentially the whole spectrum, and otherwise warns how much of the optical
-  power falls outside them.
-- **Exact intensity table** of *Jₙ(β)²* per line and the combined ±*n* power
-  share for each order.
+- **Captured-power readout** that warns how much of the optical power falls
+  outside the displayed orders when they miss part of the spectrum.
+- **Power share table** giving each order's share of the optical power (±*n*
+  counted together).
 - **Colourblind-safe, theme-aware figures** that follow Streamlit's light/dark
   mode.
 - A **Physics & model details** panel explaining the model, its assumptions, and
