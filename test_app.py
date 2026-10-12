@@ -21,21 +21,30 @@ import numpy as np                       # noqa: E402
 import pytest                            # noqa: E402
 
 from app import (NMAX, PRESETS, YLIM, YLIM_DB, apply_plot_style,  # noqa: E402
-                 build_figure, theme_ink, truncation_message)
+                 build_figure, figure_png, theme_ink, truncation_message)
+from matplotlib.colors import to_rgba                 # noqa: E402
+from PIL import Image                                 # noqa: E402
+import io                                             # noqa: E402
 from physics import sideband_intensities  # noqa: E402
 
 # Every preset operating point, on both y-scales.
 CASES = [(beta, N, db) for beta, N in PRESETS.values() for db in (False, True)]
 
 
-def _figure(beta, N, db_scale):
-    """Build the two-panel figure for one operating point and y-scale."""
-    ink = theme_ink(False)
+def _figure(beta, N, db_scale, mode='light'):
+    """Build the two-panel figure for one operating point, y-scale and theme."""
+    ink = theme_ink(mode == 'dark')
     apply_plot_style(ink)
     return build_figure(beta=beta, f0=1000.0, N=N,
                         Jn2=sideband_intensities(beta, N), width_frac=0.012,
                         noise=0.004, color_peaks=True, fixed_xaxis=False,
-                        db_scale=db_scale, mode='light', ink=ink)
+                        db_scale=db_scale, mode=mode, ink=ink)
+
+
+def _luminance(color):
+    """Relative luminance (0 black .. 1 white) of a matplotlib colour."""
+    r, g, b, _ = to_rgba(color)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 
 def _guide_line_heights(ax):
@@ -91,3 +100,22 @@ def test_truncation_message_only_advises_while_the_slider_has_room(N):
     message = truncation_message(0.75, N)
     assert message.startswith("**Spectral truncation:** 25% of the optical power")
     assert ("Increase the number of displayed sideband orders" in message) == (N < NMAX)
+
+
+@pytest.mark.parametrize("mode", ["light", "dark"])
+def test_figure_carries_its_own_opaque_background(mode):
+    """The rendered figure is opaque and its ink contrasts with its own background.
+
+    Streamlit can report the previous theme after a viewer switches it in the
+    menu, so the figure must never rely on the page behind it: with its own
+    background it stays readable even when it was drawn for the other theme.
+    """
+    fig = _figure(1.0, 2, False, mode)
+    png = Image.open(io.BytesIO(figure_png(fig))).convert("RGBA")
+    plt.close(fig)
+    assert png.getextrema()[3] == (255, 255), "the figure has transparent pixels"
+
+    ink = theme_ink(mode == 'dark')
+    assert png.getpixel((5, 5))[:3] == tuple(round(255 * c) for c in to_rgba(ink["bg"])[:3])
+    for role in ("text", "grey"):
+        assert abs(_luminance(ink[role]) - _luminance(ink["bg"])) > 0.35, role

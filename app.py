@@ -98,8 +98,13 @@ def _apply_preset():
 # ---------------------------------------------------------------------------
 # Theming and plotting
 #
-# Both figures are rendered on a transparent background, so only the ink
-# colours depend on the active Streamlit theme (light or dark).
+# The figure is drawn for the active Streamlit theme (light or dark) and
+# carries that theme's background colour itself, rather than being transparent.
+# Streamlit only reports the theme reliably after a rerun: when a viewer
+# switches the theme in the app menu, nothing reruns, so the figure keeps the
+# previous theme until the next interaction (streamlit/streamlit#11920). With
+# its own background the figure then still reads as a light or dark panel,
+# instead of light ink on a light page or dark ink on a dark one.
 # ---------------------------------------------------------------------------
 def theme_ink(is_dark):
     """Return the theme-dependent ink colours for the matplotlib figure.
@@ -112,11 +117,13 @@ def theme_ink(is_dark):
     Returns
     -------
     dict
-        Colours keyed by role: ``grey`` (axes/labels), ``text`` (titles,
-        matches the Streamlit ``textColor``), ``hline`` (dashed helper lines),
-        and ``box_fc`` / ``box_ec`` (annotation-box face and edge).
+        Colours keyed by role: ``bg`` (figure background, matches the
+        Streamlit ``backgroundColor``), ``grey`` (axes/labels), ``text``
+        (titles, matches the Streamlit ``textColor``), ``hline`` (dashed helper
+        lines), and ``box_fc`` / ``box_ec`` (annotation-box face and edge).
     """
     return {
+        "bg":     '#0e1117' if is_dark else '#ffffff',
         "grey":   '0.65' if is_dark else '0.45',
         "text":   '#fafafa' if is_dark else '#262730',
         "hline":  '0.5' if is_dark else '0.7',
@@ -290,7 +297,7 @@ def build_figure(*, beta, f0, N, Jn2, width_frac, noise, color_peaks,
     """Build and return the two-panel matplotlib figure (spectrum + Bessel curves)."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.5, 5.2), dpi=150)
     fig.subplots_adjust(wspace=0.18, top=0.86, bottom=0.13, left=0.07, right=0.93)
-    fig.patch.set_alpha(0.0)
+    fig.patch.set_facecolor(ink["bg"])
     for ax in (ax1, ax2):
         ax.set_facecolor('none')
 
@@ -303,13 +310,13 @@ def build_figure(*, beta, f0, N, Jn2, width_frac, noise, color_peaks,
 
 
 def figure_png(fig):
-    """Render ``fig`` to PNG bytes, uncropped and transparent.
+    """Render ``fig`` to PNG bytes, uncropped, on its own background.
 
     The canvas is saved exactly as laid out by ``subplots_adjust`` instead of
-    being cropped to its content, at the 200 dpi ``st.pyplot`` used, and the
-    transparent figure patch carries through, so the chart sits on whichever
-    background the page uses. Saving it here, rather than passing savefig
-    options to ``st.pyplot`` (now deprecated), keeps that control in our hands.
+    being cropped to its content, at the 200 dpi ``st.pyplot`` used, with the
+    figure's own background colour (see :func:`theme_ink`). Saving it here,
+    rather than passing savefig options to ``st.pyplot`` (now deprecated),
+    keeps that control in our hands.
     """
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=200)
