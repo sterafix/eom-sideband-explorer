@@ -3,8 +3,8 @@
 An interactive [Streamlit](https://streamlit.io/) tool for visualizing the
 optical sideband spectrum of an **electro-optic phase modulator (EOM)**.
 
-Phase-modulating a laser at frequency *f₀* with modulation depth *β* produces a
-carrier plus a symmetric set of sidebands at ±*n·f₀*, where each spectral line's
+Phase-modulating a laser at angular frequency *Ω* with modulation depth *β* produces a
+carrier plus a symmetric set of sidebands at ±*n·Ω*, where each spectral line's
 intensity is *Jₙ(β)²* (the Jacobi–Anger expansion). Drag the sliders and watch
 the optical spectrum and the underlying Bessel functions update side by side.
 
@@ -17,8 +17,9 @@ the optical spectrum and the underlying Bessel functions update side by side.
 - **Two linked views.** The optical spectrum (Fig. 1) and the Bessel curves
   *|Jₙ(β)|²* (Fig. 2), with a marker showing how each peak height is a slice
   through the Bessel curves at your chosen *β*.
-- **Live controls** for modulation depth *β*, modulation frequency *f₀*, and the
-  number of sideband orders to display.
+- **Live controls** for modulation depth *β* and the number of sideband orders
+  to display. The modulation frequency *Ω* only sets the line spacing, so the
+  spectrum's frequency axis is labelled in units of it (0, ±Ω, ±2Ω, ...).
 - **Preset operating points**, including the *carrier null* at *β ≈ 2.4048* used
   in the lab to measure a modulator's half-wave voltage *Vπ*.
 - **Linear / dB y-axis toggle** (under Display options) that switches both
@@ -104,17 +105,17 @@ An ideal phase modulator imprints a sinusoidal phase on a monochromatic laser
 field:
 
 ```
-E(t) = E₀ · exp( i[ ω_c·t + β·sin(ω_m·t) ] )
+E(t) = E₀ · exp( i[ ω_c·t + β·sin(Ω·t) ] )
 ```
 
 The Jacobi–Anger identity expands this into a carrier plus an infinite set of
 sidebands spaced by the modulation frequency:
 
 ```
-E(t) = E₀ · Σₙ Jₙ(β) · exp( i(ω_c + n·ω_m)·t )
+E(t) = E₀ · Σₙ Jₙ(β) · exp( i(ω_c + n·Ω)·t )
 ```
 
-so the line at detuning *n·f₀* has intensity *|Jₙ(β)|²*. Two properties follow:
+so the line at detuning *n·Ω* has intensity *|Jₙ(β)|²*. Two properties follow:
 
 - **Symmetry** — the +*n* and −*n* orders carry equal intensity.
 - **Energy conservation** — Σₙ *|Jₙ(β)|²* = 1: phase modulation only
