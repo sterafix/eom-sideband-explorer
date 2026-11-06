@@ -31,7 +31,7 @@ CASES = [(beta, N, db) for beta, N in PRESETS.values() for db in (False, True)]
 
 def _figure(beta, N, db_scale, mode='light'):
     """Build the two-panel figure for one operating point, y-scale and theme."""
-    return build_figure(beta=beta, f0=1000.0, N=N,
+    return build_figure(beta=beta, N=N,
                         Jn2=sideband_intensities(beta, N), width_frac=0.012,
                         noise=0.004, color_peaks=True, fixed_xaxis=False,
                         db_scale=db_scale, mode=mode)

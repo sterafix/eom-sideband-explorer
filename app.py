@@ -6,7 +6,7 @@ the physics lives in :mod:`physics` so it can be tested independently.
 
 The two figures shown side by side are:
 
-* **Fig. 1 - Optical spectrum:** each sideband order drawn at ``n * f0`` with
+* **Fig. 1 - Optical spectrum:** each sideband order drawn at ``n * Omega`` with
   height ``|J_n(beta)|^2``.
 * **Fig. 2 - Bessel curves:** ``|J_n(beta)|^2`` versus modulation depth, with a
   marker at the chosen ``beta`` showing that every peak height in Fig. 1 is a
@@ -181,11 +181,27 @@ def _ylim(db_scale):
     return YLIM_DB if db_scale else YLIM
 
 
-def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, db_scale, mode, ink):
+def _omega_label(n, math=False):
+    """Return the label for detuning ``n * Omega``: ``0``, ``Ω``, ``2Ω``, ...
+
+    With ``math=True`` the label is matplotlib mathtext (``$-2\\Omega$``), so
+    the figure ticks get a proper minus sign and an italic Omega.
+    """
+    if n == 0:
+        return "$0$" if math else "0"
+    k = "" if abs(n) == 1 else str(abs(n))
+    if math:
+        return f"${'-' if n < 0 else ''}{k}\\Omega$"
+    return f"{'-' if n < 0 else ''}{k}Ω"
+
+
+def draw_spectrum(ax, *, beta, N, Jn2, width_frac, noise, color_peaks, db_scale, mode, ink):
     """Draw Fig. 1: the optical power spectrum.
 
-    Each order ``n`` is placed at detuning ``n * f0`` with height
-    ``|J_n(beta)|^2``. The mathematically sharp lines are rendered as narrow
+    Each order ``n`` is placed at detuning ``n * Omega`` with height
+    ``|J_n(beta)|^2``. The modulation frequency only sets the line spacing,
+    never the heights, so the frequency axis is drawn in units of ``Omega``
+    (ticks ``0, ±Omega, ±2 Omega, ...``) rather than in MHz. The mathematically sharp lines are rendered as narrow
     Gaussian peaks on a small synthetic noise floor so they are visible.
 
     Parameters
@@ -194,8 +210,6 @@ def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, db_sc
         Axes to draw on.
     beta : float
         Modulation depth in radians (shown in the annotation box).
-    f0 : float
-        Modulation frequency in MHz (sets the line spacing).
     N : int
         Highest sideband order to display.
     Jn2 : numpy.ndarray
@@ -214,19 +228,19 @@ def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, db_sc
     ink : dict
         Theme ink colours from :func:`theme_ink`.
     """
-    span = (N + 0.8) * f0
+    span = N + 0.8     # in units of the modulation frequency Omega
     freq = np.linspace(-span, span, 6000)
     width = width_frac * span
     trace = np.zeros_like(freq)
     for n in range(-N, N + 1):
-        trace += Jn2[abs(n)] * np.exp(-0.5 * ((freq - n * f0) / width)**2)
+        trace += Jn2[abs(n)] * np.exp(-0.5 * ((freq - n) / width)**2)
     trace += noise * np.abs(np.random.default_rng(0).normal(size=freq.shape))
     trace = _scale_y(trace, db_scale)
 
     ax.plot(freq, trace, color=color_for_n(0, mode), lw=0.9, zorder=1)
     for n in range(0, N + 1):
         h = _scale_y(Jn2[n], db_scale)
-        centers = [0.0] if n == 0 else [-n * f0, n * f0]
+        centers = [0.0] if n == 0 else [-n, n]
         for c0 in centers:
             # Only the color highlight is skipped for vanishingly small orders
             # (there is no visible peak in the noise floor to paint); the order
@@ -246,12 +260,13 @@ def draw_spectrum(ax, *, beta, f0, N, Jn2, width_frac, noise, color_peaks, db_sc
 
     ax.set_xlim(-span, span)
     ax.set_ylim(*_ylim(db_scale))
-    ax.set_xlabel('Frequency offset from carrier [MHz]', fontweight='bold')
+    ticks = np.arange(-N, N + 1)
+    ax.set_xticks(ticks, [_omega_label(n, math=True) for n in ticks])
+    ax.set_xlabel('Frequency offset from carrier', fontweight='bold')
     ax.set_ylabel('Relative intensity [dB]' if db_scale else 'Relative intensity',
                   fontweight='bold')
     ax.set_title('Fig. 1: Optical spectrum', fontweight='bold', color=ink["text"], pad=12)
     ax.text(0.04, 0.95,
-            f"$f_0$ = {f0:.0f} MHz\n"
             f"$\\beta$ = {beta:.3f} rad",
             transform=ax.transAxes, va='top', ha='left', fontsize=10, color=ink["grey"],
             bbox=dict(boxstyle='round', fc=ink["box_fc"], ec=ink["box_ec"]))
@@ -309,7 +324,7 @@ def draw_bessel_curves(ax, *, beta, N, Jn2, fixed_xaxis, db_scale, mode, ink):
     legend.get_title().set_color(ink["text"])
 
 
-def build_figure(*, beta, f0, N, Jn2, width_frac, noise, color_peaks,
+def build_figure(*, beta, N, Jn2, width_frac, noise, color_peaks,
                  fixed_xaxis, db_scale, mode):
     """Build and return the two-panel matplotlib figure (spectrum + Bessel curves).
 
@@ -323,7 +338,7 @@ def build_figure(*, beta, f0, N, Jn2, width_frac, noise, color_peaks,
     fig.subplots_adjust(wspace=0.18, top=0.86, bottom=0.13, left=0.07, right=0.93)
     fig.patch.set_facecolor(ink["bg"])
 
-    draw_spectrum(ax1, beta=beta, f0=f0, N=N, Jn2=Jn2, width_frac=width_frac,
+    draw_spectrum(ax1, beta=beta, N=N, Jn2=Jn2, width_frac=width_frac,
                   noise=noise, color_peaks=color_peaks, db_scale=db_scale,
                   mode=mode, ink=ink)
     draw_bessel_curves(ax2, beta=beta, N=N, Jn2=Jn2, fixed_xaxis=fixed_xaxis,
@@ -356,7 +371,7 @@ def render_sidebar():
     Returns
     -------
     tuple
-        ``(beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale)``.
+        ``(beta, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale)``.
     """
     st.sidebar.title("EOM parameters")
     # Slider and exact-value box share one row, so they read as a single control.
@@ -370,15 +385,10 @@ def render_sidebar():
     col_box.number_input("Exact β [rad]", 0.0, 10.0, step=0.005, key="beta_input",
                          format="%.3f", on_change=_beta_from_input,
                          label_visibility="collapsed")
-    f0 = st.sidebar.slider("Modulation frequency  f₀ [MHz]", 50.0, 3000.0, 1000.0, 5.0,
-                           format="%.0f",
-                           help="Frequency of the RF signal driving the EOM. It sets "
-                                "the spacing between neighbouring lines, but not "
-                                "their heights.")
     N = st.sidebar.slider(
         "Displayed sideband orders", 1, NMAX, step=1, key="N",
         help="How many sideband orders are drawn on each side of the carrier. "
-             "Order n sits at n·f₀ from the carrier. All orders exist "
+             "Order n sits at n·Ω from the carrier. All orders exist "
              "physically; this only sets how many are shown.")
 
     st.sidebar.pills("Presets", list(PRESETS), key="preset", on_change=_apply_preset,
@@ -403,7 +413,7 @@ def render_sidebar():
         fixed_xaxis = st.checkbox("Fix β-axis to 0 to 10", False)
     db_scale = scale_choice == "dB"
 
-    return beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale
+    return beta, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale
 
 
 def truncation_message(cap, N):
@@ -451,14 +461,14 @@ def render_metrics(Jn2, N):
                 st.warning(truncation_message(cap, N), icon=":material/warning:")
 
 
-def render_intensity_table(Jn2, f0, N):
+def render_intensity_table(Jn2, N):
     """Show the exact intensity of each displayed sideband as a table."""
     with st.container(border=True):
         st.subheader("Sideband intensities")
         orders = list(range(0, N + 1))
         table = {
             "Order": ["0 (carrier)" if n == 0 else f"±{n}" for n in orders],
-            "Offset from carrier [MHz]": ["0" if n == 0 else f"±{n * f0:.0f}" for n in orders],
+            "Offset from carrier": ["0" if n == 0 else f"±{_omega_label(abs(n))}" for n in orders],
             "Power fraction Jₙ(β)²": [f"{Jn2[n]:.4f}" for n in orders],
         }
         col_t, _ = st.columns([3, 2])
@@ -479,19 +489,19 @@ def render_physics_details():
             "phase or its polarization. In a phase modulator, the phase shift is "
             "proportional to the voltage, so any drive waveform (a sine, a ramp, a "
             "pulse) is copied onto the phase. This tool models an ideal phase "
-            "modulator driven by a sinusoidal RF voltage at $f_0$, which makes the "
+            "modulator driven by a sinusoidal RF voltage at angular frequency $\\Omega$, which makes the "
             "phase of a single-frequency laser oscillate:")
-        st.latex(r"E(t)=E_0\,e^{\,i[\omega_c t+\beta\sin(\omega_m t)]}")
+        st.latex(r"E(t)=E_0\,e^{\,i[\omega_c t+\beta\sin(\Omega t)]}")
         st.markdown(
-            r"Here $\omega_c$ is the laser (carrier) angular frequency, $\omega_m = 2\pi f_0$ "
-            r"the modulation frequency, and $\beta$ the modulation depth, the peak "
+            r"Here $\omega_c$ is the laser (carrier) angular frequency, $\Omega$ "
+            r"the modulation (angular) frequency, and $\beta$ the modulation depth, the peak "
             r"phase shift in radians. The **Jacobi-Anger identity** rewrites this "
             r"wiggling phase as a sum of steady laser lines, the carrier plus an "
-            r"infinite set of sidebands spaced by $f_0$:")
-        st.latex(r"E(t)=E_0\sum_{n=-\infty}^{\infty} J_n(\beta)\,e^{\,i(\omega_c+n\omega_m)t},")
+            r"infinite set of sidebands spaced by $\Omega$:")
+        st.latex(r"E(t)=E_0\sum_{n=-\infty}^{\infty} J_n(\beta)\,e^{\,i(\omega_c+n\Omega)t},")
         st.markdown(
             r"where $J_n$ is the Bessel function of the first kind of order $n$. The "
-            r"line $n f_0$ away from the carrier has amplitude $J_n(\beta)$ and "
+            r"line $n\Omega$ away from the carrier has amplitude $J_n(\beta)$ and "
             r"therefore a power fraction $|J_n(\beta)|^2$. Two consequences shape the "
             r"figures:")
         st.markdown(
@@ -527,7 +537,7 @@ def render_physics_details():
             r"this). The simulation itself takes $\beta$ directly and needs no $V_\pi$.")
         st.markdown("**What the figures show**")
         st.markdown(
-            r"- **Fig. 1** is the optical spectrum: each line at $n f_0$ from the "
+            r"- **Fig. 1** is the optical spectrum: each line at $n\Omega$ from the "
             r"carrier, with height $|J_n(\beta)|^2$ and its order number on top. Real "
             r"lines are infinitely narrow, so they are drawn as narrow peaks on a small "
             r"fake noise floor (both adjustable under Display options). The dashed line "
@@ -546,7 +556,7 @@ def render_physics_details():
             r"Real modulators never produce *pure* phase modulation. Imperfections such "
             r"as reflections at the crystal faces or light polarized not exactly along "
             r"the crystal axis add a small **residual amplitude modulation (RAM)**: the "
-            r"laser power itself wobbles at $f_0$, which pure phase modulation never "
+            r"laser power itself wobbles at $\Omega$, which pure phase modulation never "
             r"does. In laser locking schemes such as Pound-Drever-Hall, RAM appears as "
             r"a small, temperature-dependent offset in the error signal that slowly "
             r"shifts the lock point. The ideal model here does not include it."
@@ -586,21 +596,21 @@ def main():
     mode = "dark" if st.context.theme.type == "dark" else "light"
 
     init_session_state()
-    beta, f0, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale = render_sidebar()
+    beta, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale = render_sidebar()
 
     # |J_n(beta)|^2 for n = 0..N, shared by both figures and the table.
     Jn2 = sideband_intensities(beta, N)
 
-    fig = build_figure(beta=beta, f0=f0, N=N, Jn2=Jn2, width_frac=width_frac,
+    fig = build_figure(beta=beta, N=N, Jn2=Jn2, width_frac=width_frac,
                        noise=noise, color_peaks=color_peaks,
                        fixed_xaxis=fixed_xaxis, db_scale=db_scale, mode=mode)
 
     st.header("EOM Sideband Explorer")
     st.markdown(
         "This app simulates an **electro-optic phase modulator (EOM)** driven by a "
-        "sinusoidal RF signal of frequency $f_0$. It makes the phase of a laser beam "
-        "oscillate at $f_0$, which creates new laser frequencies, called "
-        "**sidebands**, spaced by $f_0$ above and below the original laser line "
+        "sinusoidal RF signal of angular frequency $\\Omega$. It makes the phase of a "
+        "laser beam oscillate at $\\Omega$, which creates new laser frequencies, called "
+        "**sidebands**, spaced by $\\Omega$ above and below the original laser line "
         "(the **carrier**). The **modulation depth** $\\beta$, the peak phase "
         "shift, sets how much power moves from the carrier into the sidebands.")
     st.caption("Try it: drag the β slider in the sidebar and watch the carrier "
@@ -612,7 +622,7 @@ def main():
     with st.container(border=True):
         st.image(figure_png(fig), width="stretch")
 
-    render_intensity_table(Jn2, f0, N)
+    render_intensity_table(Jn2, N)
     render_physics_details()
 
     st.caption("Source code on GitHub: "

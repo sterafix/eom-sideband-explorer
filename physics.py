@@ -9,16 +9,16 @@ Background
 An ideal electro-optic phase modulator imprints a sinusoidal phase onto a
 monochromatic laser field::
 
-    E(t) = E0 * exp(i[wc*t + beta*sin(wm*t)])
+    E(t) = E0 * exp(i[wc*t + beta*sin(Omega*t)])
 
-where ``wc`` is the optical carrier (angular) frequency, ``wm = 2*pi*f0`` is the
+where ``wc`` is the optical carrier (angular) frequency, ``Omega`` is the
 modulation (angular) frequency, and ``beta`` is the modulation depth in radians.
 The Jacobi-Anger identity expands this into a carrier plus an infinite,
 discrete set of sidebands spaced by the modulation frequency::
 
-    E(t) = E0 * sum_n J_n(beta) * exp(i(wc + n*wm)*t)
+    E(t) = E0 * sum_n J_n(beta) * exp(i(wc + n*Omega)*t)
 
-The spectral line at detuning ``n * f0`` therefore has amplitude ``J_n(beta)``
+The spectral line at detuning ``n * Omega`` therefore has amplitude ``J_n(beta)``
 and intensity ``|J_n(beta)|^2``, where ``J_n`` is the Bessel function of the
 first kind. Two properties follow and are used throughout the app:
 
