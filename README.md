@@ -16,7 +16,8 @@ the optical spectrum and the underlying Bessel functions update side by side.
 
 - **Two linked views.** The optical spectrum (Fig. 1) and the Bessel curves
   *|Jₙ(β)|²* (Fig. 2), with a marker showing how each peak height is a slice
-  through the Bessel curves at your chosen *β*.
+  through the Bessel curves at your chosen *β*. Each curve carries its order
+  directly on the plot, and a short caption explains how to read both panels.
 - **Live controls** for modulation depth *β* and the number of sideband orders
   to display. The modulation frequency *Ω* only sets the line spacing, so the
   spectrum's frequency axis is labelled in units of it (0, ±Ω, ±2Ω, ...).
@@ -25,8 +26,6 @@ the optical spectrum and the underlying Bessel functions update side by side.
 - **Linear / dB y-axis toggle** (under Display options) that switches both
   figures together, keeping their guide lines aligned, so the weaker sideband
   orders become visible instead of collapsing onto zero.
-- **Captured-power readout** that warns how much of the optical power falls
-  outside the displayed orders when they miss part of the spectrum.
 - **Exact intensity table** of *Jₙ(β)²* per sideband for each order.
 - **Colourblind-safe, theme-aware figures** that follow Streamlit's light/dark
   mode.

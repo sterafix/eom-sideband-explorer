@@ -25,12 +25,11 @@ def _run(**state):
 
 
 def _assert_clean(at):
-    """Fail if the run raised or showed anything but the app's own alerts."""
+    """Fail if the run raised or showed any warning."""
     assert not at.exception, [e.value for e in at.exception]
-    # The truncation warning is the app's only intended st.warning; anything
-    # else (for example a deprecation notice from Streamlit) is a regression.
-    stray = [w.value for w in at.warning
-             if not w.value.startswith("**Spectral truncation:**")]
+    # The app shows no st.warning of its own, so any warning (for example a
+    # deprecation notice from Streamlit) is a regression.
+    stray = [w.value for w in at.warning]
     assert not stray, stray
 
 
