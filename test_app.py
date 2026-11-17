@@ -6,9 +6,6 @@ the dashed guide line drawn at a peak in Fig. 1 lands exactly on that order's
 marker in Fig. 2. The linear/dB toggle is the thing most able to break it, so
 it is exercised on both settings.
 
-The spectral-truncation message is checked here too, since its advice must
-never point at a setting the sidebar cannot reach.
-
 The figures are built without pyplot and rendered off-screen, so the suite
 needs no display or browser.
 """
@@ -21,8 +18,8 @@ from matplotlib.colors import to_rgba
 from matplotlib.text import Text
 from PIL import Image
 
-from app import (NMAX, PRESETS, YLIM, YLIM_DB, build_figure, figure_png,
-                 theme_ink, truncation_message)
+from app import (PRESETS, YLIM, YLIM_DB, build_figure, figure_png,
+                 theme_ink)
 from physics import sideband_intensities
 
 # Every preset operating point, on both y-scales.
@@ -83,16 +80,15 @@ def test_nothing_drawn_is_infinite(beta, N, db_scale):
             assert np.all(np.isfinite(np.atleast_1d(line.get_ydata())))
 
 
-@pytest.mark.parametrize("N", range(1, NMAX + 1))
-def test_truncation_message_only_advises_while_the_slider_has_room(N):
-    """The "display more orders" advice must disappear once the slider is maxed.
-
-    Below the maximum it has to be present, since it is the whole reason the
-    warning is worth reading.
-    """
-    message = truncation_message(0.75, N)
-    assert message.startswith("**Spectral truncation:** 25% of the optical power")
-    assert ("Increase the number of displayed sideband orders" in message) == (N < NMAX)
+@pytest.mark.parametrize("beta, N, db_scale", CASES)
+def test_every_bessel_curve_is_labeled_directly(beta, N, db_scale):
+    """Fig. 2 names each curve on the plot itself, once per order, with no legend."""
+    fig = _figure(beta, N, db_scale)
+    ax2 = fig.axes[1]
+    labels = sorted(t.get_text() for t in ax2.texts)
+    expected = sorted(["0"] + [f"±{n}" for n in range(1, N + 1)])
+    assert labels == expected
+    assert ax2.get_legend() is None
 
 
 @pytest.mark.parametrize("mode", ["light", "dark"])

@@ -20,16 +20,13 @@ import io
 import matplotlib
 import numpy as np
 import streamlit as st
+from matplotlib import patheffects
 from matplotlib.figure import Figure
 
 from physics import (color_for_n, sideband_intensities, intensity_vs_beta,
-                     captured_power, to_decibels, DB_FLOOR)
+                     to_decibels, DB_FLOOR)
 
 NMAX = 6        # max selectable sideband orders to display
-
-# Share of the optical power the displayed orders must hold for the spectrum to
-# count as essentially complete; below it the truncation warning is shown.
-POWER_COMPLETE = 0.98
 
 # Shared y-limits for both figures. The two panels show the same intensities
 # (|J_n(beta)|^2), so their axes must span the same range for the dashed
@@ -41,6 +38,14 @@ YLIM = (-0.06, 1.14)
 # little below the to_decibels() clipping floor (DB_FLOOR) and the top leaves
 # headroom for the order labels above the 0 dB carrier line.
 YLIM_DB = (DB_FLOOR - 4.0, 5.0)
+
+# Shown under the figure, so a first-time visitor can read the two panels and
+# their link without opening Physics & model details.
+FIGURE_CAPTION = (
+    "**Left (Fig. 1):** the light leaving the EOM. Each peak is one laser "
+    "frequency, labeled with its order n. **Right (Fig. 2):** how strong each "
+    "order is for every β. The dots mark your current β; follow a dashed line "
+    "across to the matching peak on the left.")
 
 # Preset operating points, each mapping a label to (modulation depth beta,
 # number of orders to display). The carrier-null preset sits at the first
@@ -300,11 +305,12 @@ def draw_bessel_curves(ax, *, beta, N, Jn2, fixed_xaxis, db_scale, mode, ink):
     """
     bmax = 10.0 if fixed_xaxis else max(3.0, beta * 1.1)
     bgrid = np.linspace(0, bmax, 800)
+    curves = []
     for n in range(0, N + 1):
         curve = _scale_y(intensity_vs_beta(n, bgrid), db_scale)
+        curves.append(curve)
         h = _scale_y(Jn2[n], db_scale)
-        ax.plot(bgrid, curve, color=color_for_n(n, mode), lw=2.2,
-                label=f"$|J_{{{n}}}|^2$")
+        ax.plot(bgrid, curve, color=color_for_n(n, mode), lw=2.2)
         ax.plot([0, beta], [h, h], ls='--', color=ink["hline"], lw=0.8, zorder=0)
         ax.scatter(beta, h, color=color_for_n(n, mode), s=20, zorder=3)   # operating-point marker
     ax.axvline(beta, ls='--', color=ink["hline"], lw=0.8, zorder=0)
@@ -319,9 +325,51 @@ def draw_bessel_curves(ax, *, beta, N, Jn2, fixed_xaxis, db_scale, mode, ink):
     ax.yaxis.tick_right()
     ax.set_ylabel('Relative intensity [dB]' if db_scale else 'Relative intensity',
                   fontweight='bold')
-    legend = ax.legend(title='Bessel functions', loc='upper right', frameon=False,
-                       labelcolor=ink["text"])
-    legend.get_title().set_color(ink["text"])
+    _label_curves(ax, curves, bgrid, mode, ink)
+
+
+def _curve_label(n):
+    """Return the direct label of order ``n``'s curve: ``0``, ``±1``, ``±2``, ...
+
+    One curve serves both the +n and the -n sideband, since they are equally
+    strong, so the label names both, as the intensity table does.
+    """
+    return "0" if n == 0 else f"±{n}"
+
+
+def _label_curves(ax, curves, bgrid, mode, ink):
+    """Write each Bessel curve's order directly on it, instead of a legend.
+
+    A label sits just above its curve's maximum, where the curves are spread
+    furthest apart. A curve that is still rising at the right edge of the plot
+    is labeled at that edge instead; those edge labels are nudged apart
+    vertically so they never print on top of each other. A halo in the
+    background colour keeps a label readable where another curve runs behind it.
+    """
+    ylo, yhi = ax.get_ylim()
+    min_gap = 0.07 * (yhi - ylo)
+    style = dict(fontsize=10, fontweight='bold', zorder=4,
+                 path_effects=[patheffects.withStroke(linewidth=3, foreground=ink["bg"])])
+    x_end = bgrid[-1]
+    edge = []
+    for n, curve in enumerate(curves):
+        i = int(np.argmax(curve))
+        color = color_for_n(n, mode)
+        if i == len(bgrid) - 1:
+            edge.append([curve[-1], n])
+            continue
+        x, y = bgrid[i], curve[i]
+        ha = 'left' if i == 0 else ('right' if x > 0.9 * x_end else 'center')
+        ax.annotate(_curve_label(n), (x, y), textcoords="offset points",
+                    xytext=(4 if i == 0 else 0, 6), ha=ha, va='bottom',
+                    color=color, **style)
+    edge.sort()
+    for k in range(1, len(edge)):
+        edge[k][0] = max(edge[k][0], edge[k - 1][0] + min_gap)
+    for y, n in edge:
+        ax.annotate(_curve_label(n), (x_end, y), textcoords="offset points",
+                    xytext=(-4, 4), ha='right', va='bottom',
+                    color=color_for_n(n, mode), **style)
 
 
 def build_figure(*, beta, N, Jn2, width_frac, noise, color_peaks,
@@ -414,51 +462,6 @@ def render_sidebar():
     db_scale = scale_choice == "dB"
 
     return beta, N, width_frac, noise, color_peaks, fixed_xaxis, db_scale
-
-
-def truncation_message(cap, N):
-    """Return the spectral-truncation warning for a captured-power fraction.
-
-    The advice to display more orders is appended only while the slider has
-    room left: at ``N == NMAX`` there is nothing to increase, so the message
-    states the shortfall and stops rather than pointing at a setting that does
-    not exist.
-
-    Parameters
-    ----------
-    cap : float
-        Fraction of the optical power held by the displayed orders, from
-        :func:`physics.captured_power`.
-    N : int
-        Highest displayed sideband order, i.e. the current slider position.
-
-    Returns
-    -------
-    str
-        The warning body, as Markdown.
-    """
-    message = (f"**Spectral truncation:** {(1 - cap) * 100:.0f}% of the optical "
-               f"power falls outside the displayed orders.")
-    if N < NMAX:
-        message += (" Increase the number of displayed sideband orders to view "
-                    "the entire relevant spectrum.")
-    return message
-
-
-def render_metrics(Jn2, N):
-    """Show the captured-power metric, plus a warning if the spectrum is truncated."""
-    with st.container(border=True):
-        col_left, col_right = st.columns([1, 2])
-        with col_left:
-            cap = captured_power(Jn2)
-            st.metric("Captured optical power", f"{cap*100:.1f} %",
-                      help="Share of the total optical power in the lines shown. "
-                           "The rest sits in higher orders that are not drawn.")
-        with col_right:
-            # Only speak up when something needs doing; a complete spectrum
-            # is already evident from the metric itself.
-            if cap < POWER_COMPLETE:
-                st.warning(truncation_message(cap, N), icon=":material/warning:")
 
 
 def render_intensity_table(Jn2, N):
@@ -617,10 +620,9 @@ def main():
                "(order 0) shrink as the sidebands (±1, ±2, ...) grow. "
                "On a phone, open the sidebar with the arrow at the top left.")
 
-    render_metrics(Jn2, N)
-
     with st.container(border=True):
         st.image(figure_png(fig), width="stretch")
+        st.caption(FIGURE_CAPTION)
 
     render_intensity_table(Jn2, N)
     render_physics_details()
