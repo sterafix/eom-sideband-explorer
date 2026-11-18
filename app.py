@@ -616,9 +616,12 @@ def main():
         "**sidebands**, spaced by $\\Omega$ above and below the original laser line "
         "(the **carrier**). The **modulation depth** $\\beta$, the peak phase "
         "shift, sets how much power moves from the carrier into the sidebands.")
-    st.caption("Try it: drag the β slider in the sidebar and watch the carrier "
-               "(order 0) shrink as the sidebands (±1, ±2, ...) grow. "
-               "On a phone, open the sidebar with the arrow at the top left.")
+    # The one call to action on the page, so it gets a coloured box rather than
+    # a grey caption that is easy to skim past.
+    st.info("**Try it:** drag the **β slider** in the sidebar and watch the carrier "
+            "(order 0) shrink as the sidebands (±1, ±2, ...) grow. "
+            "On a phone, open the sidebar with the arrow at the top left.",
+            icon=":material/touch_app:")
 
     with st.container(border=True):
         st.image(figure_png(fig), width="stretch")
